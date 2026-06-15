@@ -1,0 +1,266 @@
+<!-- backend/views/edit-blog.ejs -->
+<!-- UPDATED: Added "Generate with AI" buttons and logic for blog content -->
+
+<%- include('partials/_header') %>
+<!-- EasyMDE CSS -->
+<link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
+<!-- Custom styles to override EasyMDE defaults -->
+<style>
+    .editor-toolbar { border-top-left-radius: 0.375rem; border-top-right-radius: 0.375rem; border-color: #cbd5e1; /* gray-300 */ }
+    .CodeMirror { border-bottom-left-radius: 0.375rem; border-bottom-right-radius: 0.375rem; border-color: #cbd5e1; /* gray-300 */ }
+    .cm-s-easymde .CodeMirror-cursor { border-left: 1px solid #1e293b; /* gray-800 */ }
+</style>
+<%- include('partials/_sidebar') %>
+
+<div class="max-w-4xl mx-auto">
+    <!-- Back Navigation Link -->
+    <div class="mb-4">
+        <a href="<%= adminBase %>/blog" class="inline-flex items-center text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
+            <i class="ri-arrow-left-s-line mr-1 text-lg"></i>
+            Back to Blog Posts
+        </a>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-800"><%= title %></h2>
+            <p class="mt-1 text-sm text-gray-500">Create and edit your blog content using a rich markdown editor.</p>
+        </div>
+
+        <form id="blogForm">
+            <div class="p-6 space-y-6">
+                <!-- Slug -->
+                <div>
+                    <label for="slug" class="block text-sm font-medium text-gray-700">Slug (URL Identifier)</label>
+                    <input type="text" id="slug" value="<%= post ? post.slug : '' %>" required <%= post ? 'readonly' : '' %>
+                           class="form-input <%= post ? 'bg-gray-100 cursor-not-allowed' : '' %>">
+                </div>
+
+                <!-- English & Hindi Titles -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div>
+                        <label for="title_en" class="block text-sm font-medium text-gray-700">Title (English)</label>
+                        <input type="text" id="title_en" value="<%= post ? post.title.en : '' %>" required class="form-input">
+                    </div>
+                    <div>
+                        <label for="title_hi" class="block text-sm font-medium text-gray-700">Title (Hindi)</label>
+                        <input type="text" id="title_hi" value="<%= post ? post.title.hi : '' %>" required class="form-input">
+                    </div>
+                </div>
+
+                <!-- Body Content (English) with Markdown Editor -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="body_en" class="block text-sm font-medium text-gray-700">Body Content (English)</label>
+                        <button type="button" id="generate-en-btn" class="btn btn-secondary py-1 px-2 text-xs flex items-center">
+                            <i class="ri-robot-2-line mr-1"></i> Generate with AI
+                        </button>
+                    </div>
+                    <textarea id="body_en"><%= post ? post.body.en : '' %></textarea>
+                </div>
+                
+                <!-- Body Content (Hindi) with Markdown Editor -->
+                <div>
+                     <div class="flex justify-between items-center mb-1">
+                        <label for="body_hi" class="block text-sm font-medium text-gray-700">Body Content (Hindi)</label>
+                        <button type="button" id="generate-hi-btn" class="btn btn-secondary py-1 px-2 text-xs flex items-center">
+                           <i class="ri-robot-2-line mr-1"></i> Generate with AI
+                        </button>
+                    </div>
+                    <textarea id="body_hi"><%= post ? post.body.hi : '' %></textarea>
+                </div>
+                
+                <!-- Metadata Section -->
+                <div class="space-y-6 border-t border-gray-200 pt-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="author" class="block text-sm font-medium text-gray-700">Author</label>
+                            <input type="text" id="author" value="<%= post ? post.author : 'UU7Game Expert' %>" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="tags" class="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
+                            <input type="text" id="tags" value="<%= post ? post.tags.join(', ') : '' %>" class="form-input">
+                        </div>
+                    </div>
+                    
+                    <!-- Image Upload Component -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Featured Image</label>
+                        <div class="mt-2 flex items-center space-x-6">
+                            <div class="shrink-0">
+                                <img id="image-preview" src="<%= (post && post.image) ? post.image : 'https://via.placeholder.com/128' %>" alt="Image preview" class="h-32 w-32 object-cover rounded-md">
+                            </div>
+                            <div class="flex-grow">
+                                <input type="hidden" id="image" value="<%= post ? post.image : '' %>">
+                                <label for="image-upload-input" class="btn btn-secondary cursor-pointer">
+                                    <span>Choose Image</span>
+                                </label>
+                                <input id="image-upload-input" type="file" class="sr-only">
+                                <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF, WEBP up to 5MB.</p>
+                                <div id="upload-status" class="mt-2 text-sm"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Footer -->
+            <div class="bg-gray-50 p-4 flex justify-end rounded-b-lg">
+                <button type="submit" id="submitButton" class="btn btn-primary">
+                    <%= post ? 'Update Post' : 'Create Post' %>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EasyMDE JavaScript library -->
+<script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+
+<script>
+    // --- Image Upload Logic ---
+    const imageUploadInput = document.getElementById('image-upload-input');
+    const imagePreview = document.getElementById('image-preview');
+    const imagePathInput = document.getElementById('image');
+    const uploadStatus = document.getElementById('upload-status');
+
+    imageUploadInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => { imagePreview.src = e.target.result; };
+        reader.readAsDataURL(file);
+        const formData = new FormData();
+        formData.append('image', file);
+        uploadStatus.textContent = 'Uploading...';
+        uploadStatus.className = 'mt-2 text-sm text-gray-600';
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch('/api/admin/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Upload failed');
+            imagePathInput.value = result.filePath;
+            imagePreview.src = result.filePath;
+            uploadStatus.textContent = 'Upload successful!';
+            uploadStatus.className = 'mt-2 text-sm text-green-600 font-medium';
+        } catch (error) {
+            uploadStatus.textContent = `Error: ${error.message}`;
+            uploadStatus.className = 'mt-2 text-sm text-red-600 font-medium';
+        }
+    });
+
+
+    // --- Markdown Editor Setup ---
+    let easyMDE_en, easyMDE_hi;
+    document.addEventListener('DOMContentLoaded', function() {
+        const commonConfig = { spellChecker: false, renderingConfig: { singleLineBreaks: false, }, status: ["lines", "words"] };
+        easyMDE_en = new EasyMDE({ ...commonConfig, element: document.getElementById('body_en'), placeholder: "Enter blog content in English..." });
+        easyMDE_hi = new EasyMDE({ ...commonConfig, element: document.getElementById('body_hi'), placeholder: "Enter blog content in Hindi..." });
+        const slugInput = document.getElementById('slug');
+        const titleInput = document.getElementById('title_en');
+        if (!slugInput.value) {
+            titleInput.addEventListener('keyup', () => {
+                slugInput.value = titleInput.value.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-');
+            });
+        }
+    });
+
+    // --- NEW: AI Content Generation Logic ---
+    const generateEnBtn = document.getElementById('generate-en-btn');
+    const generateHiBtn = document.getElementById('generate-hi-btn');
+    const titleInputEn = document.getElementById('title_en');
+
+    async function handleAiGeneration(lang, button) {
+        let topic = titleInputEn.value.trim();
+        if (!topic) {
+            topic = prompt('Please enter a topic for the blog post:');
+            if (!topic) {
+                showToast('A topic is required to generate content.', 'error');
+                return;
+            }
+        } else {
+            const confirmedTopic = prompt('Use this topic to generate content?', topic);
+            if (!confirmedTopic) return; // User cancelled
+            topic = confirmedTopic;
+        }
+
+        button.disabled = true;
+        button.innerHTML = '<span class="animate-pulse">Generating...</span>';
+
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch('/api/admin/blog/generate-content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ topic, lang })
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'AI generation failed.');
+
+            if (lang === 'en') {
+                easyMDE_en.value(result.body);
+            } else {
+                easyMDE_hi.value(result.body);
+            }
+            showToast('Content generated successfully!', 'success');
+
+        } catch (error) {
+            showToast(`Error: ${error.message}`, 'error');
+        } finally {
+            button.disabled = false;
+            button.innerHTML = '<i class="ri-robot-2-line mr-1"></i> Generate with AI';
+        }
+    }
+
+    if (generateEnBtn) {
+        generateEnBtn.addEventListener('click', () => handleAiGeneration('en', generateEnBtn));
+    }
+    if (generateHiBtn) {
+        generateHiBtn.addEventListener('click', () => handleAiGeneration('hi', generateHiBtn));
+    }
+
+    // --- Form Submission Logic ---
+    const form = document.getElementById('blogForm');
+    const submitButton = document.getElementById('submitButton');
+    const method = '<%= post ? "PUT" : "POST" %>';
+    const apiEndpoint = '<%= apiEndpoint %>';
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!imagePathInput.value) {
+            showToast('Please upload a featured image.', 'error');
+            return;
+        }
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
+        const formData = {
+            slug: document.getElementById('slug').value,
+            title: { en: document.getElementById('title_en').value, hi: document.getElementById('title_hi').value },
+            excerpt: { en: easyMDE_en.value().substring(0, 150), hi: easyMDE_hi.value().substring(0, 150) },
+            body: { en: easyMDE_en.value(), hi: easyMDE_hi.value() },
+            author: document.getElementById('author').value,
+            image: imagePathInput.value,
+            tags: document.getElementById('tags').value.split(',').map(tag => tag.trim()).filter(Boolean),
+        };
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch(apiEndpoint, {
+                method: method,
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(formData)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'An error occurred.');
+            showToast('Blog post saved successfully!', 'success');
+            setTimeout(() => { window.location.href = '<%= adminBase %>/blog'; }, 1000);
+        } catch (error) {
+            showToast(error.message, 'error');
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<%= post ? "Update Post" : "Create Post" %>';
+        }
+    });
+</script>
+
+<%- include('partials/_footer') %>

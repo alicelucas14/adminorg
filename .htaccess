@@ -1,0 +1,34 @@
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/channe16/adminorg.starsuu7game.com"
+PassengerBaseURI "/"
+PassengerNodejs "/home/channe16/nodevenv/adminorg.starsuu7game.com/22/bin/node"
+PassengerAppType node
+PassengerStartupFile server.js
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+#
+# === Phusion Passenger Configuration for adminorg.starsuu7game.com ===
+#
+# This file tells the web server (Apache) to hand over all requests
+# for this subdomain to the Node.js application manager.
+# Enable Phusion Passenger for this directory.
+PassengerEnabled on
+# Specify the correct Node.js interpreter for your application.
+PassengerNodejs /home/channe16/nodevenv/adminorg.starsuu7game.com/22/bin/node
+# Set the application's actual root directory on the server.
+PassengerAppRoot /home/channe16/adminorg.starsuu7game.com
+# Specify the application type and the file to start.
+PassengerAppType node
+PassengerStartupFile server.js
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION BEGIN
+<IfModule Litespeed>
+SetEnv ADMIN_BASE adminorg
+SetEnv BACKEND_API_KEY 6LrCMp28fobMTO1vSktb1wOK29WyGi25
+SetEnv BACKEND_URL https://admin.starsuu7game.com
+SetEnv FRONTEND_URL https://uu7stars.com
+SetEnv JWT_SECRET e120d24e6fad5c4ca376bb670a66afcd722d871d52508313
+SetEnv MONGO_URI mongodb://starsuuorgdb:FhhCk5LDGMsSkZeA@3.27.33.104:27017/starsuuorgdb?authSource=starsuuorgdb
+SetEnv OPENAI_API_KEY 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
+SetEnv AI_PROVIDER gemini
+SetEnv GOOGLE_GEMINI_API_KEY AIzaSyAjxE94atX0Mlf7i-Z3jqbocXGmfJVNm9w
+</IfModule>
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION END

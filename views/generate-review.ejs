@@ -1,0 +1,119 @@
+<!-- backend/views/generate-review.ejs -->
+<!-- NEW VERSION: UI for generating reviews from a dropdown of unreviewed games -->
+
+<%- include('partials/_header') %>
+<%- include('partials/_sidebar') %>
+
+<div class="max-w-2xl mx-auto">
+    <!-- Back Navigation Link -->
+    <div class="mb-4">
+        <a href="<%= adminBase %>/reviews" class="inline-flex items-center text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
+            <i class="ri-arrow-left-s-line mr-1 text-lg"></i>
+            Back to Reviews
+        </a>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-800">Generate Review with AI</h2>
+            <p class="mt-1 text-sm text-gray-500">Select a game that doesn't have a review yet, and AI will write a complete, SEO-friendly article with user comments.</p>
+        </div>
+
+        <form id="generateForm">
+            <div class="p-6 space-y-6">
+                <div>
+                    <label for="gameId" class="block text-sm font-medium text-gray-700">Select a Game to Review</label>
+                    <select id="gameId" required class="form-select">
+                        <option value="" disabled selected>Loading available games...</option>
+                        <!-- Options will be populated by JavaScript -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Form Footer -->
+            <div class="bg-gray-50 p-4 flex justify-end rounded-b-lg">
+                <button type="submit" id="submitButton" class="btn btn-primary" disabled>
+                    <i class="ri-magic-line mr-2"></i>
+                    Generate Review & Comments
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const gameIdSelect = document.getElementById('gameId');
+    const submitButton = document.getElementById('submitButton');
+    const form = document.getElementById('generateForm');
+
+    // --- 1. Fetch unreviewed games and populate the dropdown ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch('/api/admin/games/unreviewed', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch game list.');
+            
+            const games = await response.json();
+            
+            gameIdSelect.innerHTML = '<option value="" disabled selected>Select a game</option>';
+
+            if (games.length === 0) {
+                gameIdSelect.innerHTML = '<option value="" disabled selected>No games are available to review.</option>';
+                return;
+            }
+
+            games.forEach(game => {
+                const option = document.createElement('option');
+                option.value = game._id;
+                option.textContent = `${game.name.en} (by ${game.provider})`;
+                gameIdSelect.appendChild(option);
+            });
+
+            submitButton.disabled = false; // Enable the button once games are loaded
+
+        } catch (error) {
+            gameIdSelect.innerHTML = '<option value="" disabled selected>Error loading games.</option>';
+            showToast(error.message, 'error');
+        }
+    });
+
+    // --- 2. Handle the form submission ---
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const selectedGameId = gameIdSelect.value;
+        if (!selectedGameId) {
+            showToast('Please select a game from the list.', 'error');
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating... this may take a moment.`;
+
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch(`/api/admin/reviews/generate-from-game/${selectedGameId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'An unexpected error occurred.');
+
+            showToast(result.message, 'success');
+
+            setTimeout(() => {
+                window.location.href = '<%= adminBase %>/reviews';
+            }, 1500);
+
+        } catch (error) {
+            showToast(`Error: ${error.message}`, 'error');
+            submitButton.disabled = false;
+            submitButton.innerHTML = `<i class="ri-magic-line mr-2"></i> Generate Review & Comments`;
+        }
+    });
+</script>
+
+<%- include('partials/_footer') %>

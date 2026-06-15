@@ -1,0 +1,1364 @@
+Code extracted on: 2025-11-09T09:17:34.828Z
+
+// START FILE: routes/admin/blog.js
+// backend/routes/admin/blog.js
+// --- REVERTED: Removed the unnecessary rebuild trigger for SSR mode ---
+
+const express = require('express');
+const router = express.Router();
+// fetch is no longer needed in this file
+const { BlogPost } = require('../../models');
+const { protect } = require('../../middleware/authMiddleware');
+
+router.use(protect);
+
+// --- REMOVED: The triggerRebuild function is no longer needed ---
+
+/**
+ * @route   GET /api/admin/blog
+ * @desc    Get all blog posts with pagination and search for the admin panel
+ * @access  Private (Admin)
+ */
+router.get('/', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const searchQuery = req.query.search;
+
+        const filter = {};
+        if (searchQuery) {
+            const regex = new RegExp(searchQuery, 'i');
+            filter.$or = [
+                { 'title.en': regex },
+                { 'title.hi': regex },
+                { slug: regex }
+            ];
+        }
+
+        const [posts, totalItems] = await Promise.all([
+            BlogPost.find(filter).sort({ publishedAt: -1 }).skip(skip).limit(limit),
+            BlogPost.countDocuments(filter)
+        ]);
+
+        res.json({
+            data: posts,
+            totalItems,
+            currentPage: page,
+            totalPages: Math.ceil(totalItems / limit),
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   DELETE /api/admin/blog/bulk-delete
+ * @desc    Delete multiple blog posts at once
+ * @access  Private (Admin)
+ */
+router.delete('/bulk-delete', async (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: 'Please provide an array of item IDs.' });
+    }
+
+    try {
+        const result = await BlogPost.deleteMany({ _id: { $in: ids } });
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ message: 'No blog posts found with the provided IDs.' });
+        }
+        res.json({ message: `${result.deletedCount} post(s) deleted successfully.` });
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   POST /api/admin/blog
+ * @desc    Create a new blog post
+ * @access  Private (Admin)
+ */
+router.post('/', async (req, res) => {
+    const { slug, title, excerpt, body, author, image, tags, publishedAt, isPublished, metaTitle, metaDescription } = req.body;
+    if (!slug || !title || !excerpt || !body || !image) {
+        return res.status(400).json({ message: 'Please provide slug, title, excerpt, body, and image.' });
+    }
+    const requiredFields = ['title', 'excerpt', 'body'];
+    for (const field of requiredFields) {
+        if (typeof req.body[field] !== 'object' || !req.body[field].en || !req.body[field].hi) {
+            return res.status(400).json({ message: `Field '${field}' must be an object with 'en' and 'hi' properties.` });
+        }
+    }
+
+    try {
+        const newPost = new BlogPost({
+            slug, title, excerpt, body, author, image, tags,
+            publishedAt: publishedAt || new Date(),
+            isPublished, metaTitle, metaDescription
+        });
+        const savedPost = await newPost.save();
+        res.status(201).json(savedPost);
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ message: `A blog post with slug '${slug}' already exists.` });
+        }
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   GET /api/admin/blog/:id
+ * @desc    Get a single blog post by its MongoDB _id for editing
+ * @access  Private (Admin)
+ */
+router.get('/:id', async (req, res) => {
+    try {
+        const post = await BlogPost.findById(req.params.id);
+        if (!post) { return res.status(404).json({ message: 'Blog post not found' }); }
+        res.json(post);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   PUT /api/admin/blog/:id
+ * @desc    Update a blog post
+ * @access  Private (Admin)
+ */
+router.put('/:id', async (req, res) => {
+    try {
+        const updatedPost = await BlogPost.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        if (!updatedPost) { return res.status(404).json({ message: 'Blog post not found' }); }
+        res.json(updatedPost);
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   DELETE /api/admin/blog/:id
+ * @desc    Delete a blog post
+ * @access  Private (Admin)
+ */
+router.delete('/:id', async (req, res) => {
+    try {
+        const deletedPost = await BlogPost.findByIdAndDelete(req.params.id);
+        if (!deletedPost) { return res.status(404).json({ message: 'Blog post not found' }); }
+        res.json({ message: 'Blog post deleted successfully.' });
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+module.exports = router;
+// END FILE: routes/admin/blog.js
+
+//------------------------------------------------------------//
+
+// START FILE: routes/admin/comments.js
+// ===== backend/routes/admin/comments.js =====
+// --- UPDATED: Now uses the OpenAI API to generate realistic comments ---
+
+const express = require('express');
+const router = express.Router();
+const { OpenAI } = require('openai'); // <-- IMPORT OpenAI library
+const { protect } = require('../../middleware/authMiddleware');
+const { Review, Comment } = require('../../models');
+const mongoose = require('mongoose');
+
+// --- AI Generation Logic using OpenAI ---
+
+// Initialize the OpenAI client with the API key from your .env file
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+async function generateCommentsForReview(review, count) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key is not configured. Please set OPENAI_API_KEY in your .env file.');
+  }
+
+  // --- The Prompt ---
+  // This is the most crucial part. We give the AI a role, context, and strict instructions.
+  const prompt = `
+    You are an AI assistant designed to generate realistic user comments for a review on an Indian real-money gaming app called Starsuu7.
+    The review is for the game: "${review.gameName}".
+    The review title is: "${review.title.en}".
+    
+    Based on this context, generate ${count} user comments.
+    Each comment MUST be in a JSON array format. Each object in the array MUST have the following three keys and nothing else:
+    1. "username": A realistic-sounding Indian name, sometimes with just an initial for the last name (e.g., "Rohan S.", "Priya Sharma", "Vikram Kumar").
+    2. "rating": An integer between 4 and 5.
+    3. "text": The comment text. The comment should sound like a real user. It should be insightful and mention specific (even if hypothetical) positive aspects of the game like "fast withdrawals", "great graphics", "smooth gameplay", "helpful support", or "fair matchmaking". Comments should be in English but can use some common Indian-English phrasing. Keep comments concise, between 1-3 sentences.
+
+    Example of a valid JSON output format:
+    [
+      {
+        "username": "Arjun P.",
+        "rating": 5,
+        "text": "Best app for ${review.gameName}! The interface is so smooth and I got my winnings credited in just a few hours."
+      },
+      {
+        "username": "Sneha Reddy",
+        "rating": 4,
+        "text": "Really enjoying the tournaments. It's a bit challenging but very rewarding. Good to see a fair play app."
+      }
+    ]
+
+    Now, generate the JSON array for the given review.
+  `;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo", // A fast and cost-effective model
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.8, // A bit of creativity
+      response_format: { type: "json_object" }, // Ensures the output is JSON
+    });
+
+    const content = response.choices[0].message.content;
+    
+    // The AI might return a JSON object with a key containing the array. We need to find the array.
+    const parsedJson = JSON.parse(content);
+    const commentsArray = Array.isArray(parsedJson) 
+      ? parsedJson 
+      : Object.values(parsedJson)[0]; // If it's an object like {"comments": [...]}, grab the first value.
+
+    if (!Array.isArray(commentsArray)) {
+      throw new Error('AI response was not a valid JSON array.');
+    }
+
+    return commentsArray;
+
+  } catch (error) {
+    console.error("Error calling OpenAI API:", error);
+    throw new Error('Failed to generate comments from AI service.');
+  }
+}
+// --- END AI Generation Logic ---
+
+// All routes in this file are protected and can only be accessed by logged-in admins.
+router.use(protect);
+
+/**
+ * @route   POST /api/admin/comments/generate
+ * @desc    Generate and save AI comments for a specific review.
+ * @access  Private (Admin)
+ */
+router.post('/generate', async (req, res) => {
+  const { reviewId, count = 5 } = req.body;
+
+  if (!reviewId) {
+    return res.status(400).json({ message: 'Review ID is required.' });
+  }
+  if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+    return res.status(400).json({ message: 'Invalid Review ID format.' });
+  }
+
+  try {
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found.' });
+    }
+
+    const generatedComments = await generateCommentsForReview(review, count);
+    if (!generatedComments || generatedComments.length === 0) {
+        return res.status(500).json({ message: 'AI failed to generate comments.' });
+    }
+
+    const commentsToSave = generatedComments.map(comment => ({
+      reviewId: review._id,
+      username: comment.username,
+      rating: comment.rating,
+      text: comment.text,
+    }));
+
+    const savedComments = await Comment.insertMany(commentsToSave);
+
+    res.status(201).json({
+      message: `${savedComments.length} comments generated and saved successfully for review "${review.title.en}".`,
+      data: savedComments,
+    });
+
+  } catch (error) {
+    console.error('Error in comment generation route:', error);
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
+module.exports = router;
+// END FILE: routes/admin/comments.js
+
+//------------------------------------------------------------//
+
+// START FILE: routes/admin/games.js
+// backend/routes/admin/games.js
+// --- REVERTED: Removed the unnecessary rebuild trigger ---
+
+const express = require('express');
+const router = express.Router();
+// fetch is no longer needed
+const { Game } = require('../../models');
+const { protect } = require('../../middleware/authMiddleware');
+
+router.use(protect);
+
+// --- REMOVED: The triggerRebuild function is no longer needed ---
+
+/**
+ * @route   GET /api/admin/games
+ * @desc    Get all games with pagination and search for the admin panel
+ * @access  Private (Admin)
+ */
+router.get('/', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const searchQuery = req.query.search;
+
+        const filter = {};
+        if (searchQuery) {
+            const regex = new RegExp(searchQuery, 'i');
+            filter.$or = [
+                { 'name.en': regex },
+                { 'name.hi': regex },
+                { gameId: regex },
+                { provider: regex }
+            ];
+        }
+
+        const [games, totalItems] = await Promise.all([
+            Game.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+            Game.countDocuments(filter)
+        ]);
+
+        res.json({
+            data: games,
+            totalItems,
+            currentPage: page,
+            totalPages: Math.ceil(totalItems / limit),
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   DELETE /api/admin/games/bulk-delete
+ * @desc    Delete multiple games at once
+ * @access  Private (Admin)
+ */
+router.delete('/bulk-delete', async (req, res) => {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: 'Please provide an array of item IDs.' });
+    }
+
+    try {
+        const result = await Game.deleteMany({ _id: { $in: ids } });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ message: 'No games found with the provided IDs.' });
+        }
+
+        res.json({ message: `${result.deletedCount} game(s) deleted successfully.` });
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   POST /api/admin/games
+ * @desc    Create a new game
+ * @access  Private (Admin)
+ */
+router.post('/', async (req, res) => {
+    const { gameId, name, category, provider, image, isNew, isHot, isActive } = req.body;
+    if (!gameId || !name || !category || !provider || !image) {
+        return res.status(400).json({ message: 'Please fill all required fields.' });
+    }
+    if (typeof name !== 'object' || !name.en || !name.hi) {
+        return res.status(400).json({ message: 'Name must be an object with "en" and "hi" properties.' });
+    }
+
+    try {
+        const newGame = new Game({ gameId, name, category, provider, image, isNew, isHot, isActive });
+        const savedGame = await newGame.save();
+        res.status(201).json(savedGame);
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ message: `A game with ID '${gameId}' already exists.` });
+        }
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   GET /api/admin/games/:id
+ * @desc    Get a single game by its MongoDB _id
+ * @access  Private (Admin)
+ */
+router.get('/:id', async (req, res) => {
+    try {
+        const game = await Game.findById(req.params.id);
+        if (!game) { return res.status(404).json({ message: 'Game not found' }); }
+        res.json(game);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   PUT /api/admin/games/:id
+ * @desc    Update a game
+ * @access  Private (Admin)
+ */
+router.put('/:id', async (req, res) => {
+    try {
+        const updatedGame = await Game.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        if (!updatedGame) { return res.status(404).json({ message: 'Game not found' }); }
+        res.json(updatedGame);
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   DELETE /api/admin/games/:id
+ * @desc    Delete a game (single)
+ * @access  Private (Admin)
+ */
+router.delete('/:id', async (req, res) => {
+    try {
+        const deletedGame = await Game.findByIdAndDelete(req.params.id);
+        if (!deletedGame) { return res.status(404).json({ message: 'Game not found' }); }
+        res.json({ message: 'Game deleted successfully.' });
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+module.exports = router;
+// END FILE: routes/admin/games.js
+
+//------------------------------------------------------------//
+
+// START FILE: routes/admin/promotions.js
+// backend/routes/admin/promotions.js
+// --- REVERTED: Removed the unnecessary rebuild trigger for SSR mode ---
+
+const express = require('express');
+const router = express.Router();
+// fetch is no longer needed
+const { Promotion } = require('../../models');
+const { protect } = require('../../middleware/authMiddleware');
+
+// Protect all routes in this file
+router.use(protect);
+
+// --- REMOVED: The triggerRebuild function is no longer needed ---
+
+/**
+ * @route   GET /api/admin/promotions
+ * @desc    Get all promotions with pagination and search for the admin panel
+ * @access  Private (Admin)
+ */
+router.get('/', async (request, response) => {
+    try {
+        const page = parseInt(request.query.page) || 1;
+        const limit = parseInt(request.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const searchQuery = request.query.search;
+
+        const filter = {};
+        if (searchQuery) {
+            const regex = new RegExp(searchQuery, 'i');
+            filter.$or = [
+                { 'title.en': regex },
+                { 'title.hi': regex },
+                { slug: regex }
+            ];
+        }
+
+        const [promotions, totalItems] = await Promise.all([
+            Promotion.find(filter).sort({ displayOrder: 1, createdAt: -1 }).skip(skip).limit(limit),
+            Promotion.countDocuments(filter)
+        ]);
+
+        response.json({
+            data: promotions,
+            totalItems,
+            currentPage: page,
+            totalPages: Math.ceil(totalItems / limit),
+        });
+    } catch (error) {
+        response.status(500).json({ message: 'Server Error while fetching promotions.', error: error.message });
+    }
+});
+
+/**
+ * @route   POST /api/admin/promotions
+ * @desc    Create a new promotion
+ * @access  Private (Admin)
+ */
+router.post('/', async (request, response) => {
+    const { slug, title, description, imageUrl, displayOrder } = request.body;
+
+    if (!slug || !title || !description || !imageUrl) {
+        return response.status(400).json({ message: 'Please provide slug, title, description, and imageUrl.' });
+    }
+
+    try {
+        const newPromotion = new Promotion({
+            ...request.body
+        });
+        const savedPromotion = await newPromotion.save();
+        response.status(201).json(savedPromotion);
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        if (error.code === 11000) {
+            return response.status(400).json({ message: `A promotion with slug '${slug}' already exists.` });
+        }
+        response.status(500).json({ message: 'Server Error while creating promotion.', error: error.message });
+    }
+});
+
+/**
+ * @route   GET /api/admin/promotions/:id
+ * @desc    Get a single promotion by its MongoDB _id for editing
+ * @access  Private (Admin)
+ */
+router.get('/:id', async (request, response) => {
+    try {
+        const promotion = await Promotion.findById(request.params.id);
+        if (!promotion) {
+            return response.status(404).json({ message: 'Promotion not found' });
+        }
+        response.json(promotion);
+    } catch (error) {
+        response.status(500).json({ message: 'Server Error while fetching promotion.', error: error.message });
+    }
+});
+
+/**
+ * @route   PUT /api/admin/promotions/:id
+ * @desc    Update a promotion
+ * @access  Private (Admin)
+ */
+router.put('/:id', async (request, response) => {
+    try {
+        const updatedPromotion = await Promotion.findByIdAndUpdate(
+            request.params.id,
+            request.body,
+            { new: true, runValidators: true }
+        );
+        if (!updatedPromotion) {
+            return response.status(404).json({ message: 'Promotion not found' });
+        }
+        response.json(updatedPromotion);
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        response.status(500).json({ message: 'Server Error while updating promotion.', error: error.message });
+    }
+});
+
+/**
+ * @route   DELETE /api/admin/promotions/bulk-delete
+ * @desc    Delete multiple promotions at once
+ * @access  Private (Admin)
+ */
+router.delete('/bulk-delete', async (request, response) => {
+    const { ids } = request.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return response.status(400).json({ message: 'Please provide an array of item IDs.' });
+    }
+
+    try {
+        const result = await Promotion.deleteMany({ _id: { $in: ids } });
+        response.json({ message: `${result.deletedCount} promotion(s) deleted successfully.` });
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        response.status(500).json({ message: 'Server Error while bulk deleting promotions.', error: error.message });
+    }
+});
+
+/**
+ * @route   DELETE /api/admin/promotions/:id
+ * @desc    Delete a single promotion
+ * @access  Private (Admin)
+ */
+router.delete('/:id', async (request, response) => {
+    try {
+        const deletedPromotion = await Promotion.findByIdAndDelete(request.params.id);
+        if (!deletedPromotion) {
+            return response.status(404).json({ message: 'Promotion not found' });
+        }
+        response.json({ message: 'Promotion deleted successfully.' });
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        response.status(500).json({ message: 'Server Error while deleting promotion.', error: error.message });
+    }
+});
+
+module.exports = router;
+// END FILE: routes/admin/promotions.js
+
+//------------------------------------------------------------//
+
+// START FILE: routes/admin/reviews.js
+// backend/routes/admin/reviews.js
+// --- REVERTED: Removed the unnecessary rebuild trigger for SSR mode ---
+
+const express = require('express');
+const router = express.Router();
+// fetch is no longer needed
+const { Review } = require('../../models');
+const { protect } = require('../../middleware/authMiddleware');
+
+router.use(protect);
+
+// --- REMOVED: The triggerRebuild function is no longer needed ---
+
+/**
+ * @route   GET /api/admin/reviews
+ * @desc    Get all reviews with pagination and search for the admin panel
+ * @access  Private (Admin)
+ */
+router.get('/', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const searchQuery = req.query.search;
+        
+        const filter = {};
+        if (searchQuery) {
+            const regex = new RegExp(searchQuery, 'i');
+            filter.$or = [
+                { 'title.en': regex },
+                { 'title.hi': regex },
+                { slug: regex },
+                { gameName: regex }
+            ];
+        }
+
+        const [reviews, totalItems] = await Promise.all([
+            Review.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+            Review.countDocuments(filter)
+        ]);
+
+        res.json({
+            data: reviews,
+            totalItems,
+            currentPage: page,
+            totalPages: Math.ceil(totalItems / limit),
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   DELETE /api/admin/reviews/bulk-delete
+ * @desc    Delete multiple reviews at once
+ * @access  Private (Admin)
+ */
+router.delete('/bulk-delete', async (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: 'Please provide an array of item IDs.' });
+    }
+
+    try {
+        const result = await Review.deleteMany({ _id: { $in: ids } });
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ message: 'No reviews found with the provided IDs.' });
+        }
+        res.json({ message: `${result.deletedCount} review(s) deleted successfully.` });
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+
+/**
+ * @route   POST /api/admin/reviews
+ * @desc    Create a new review
+ * @access  Private (Admin)
+ */
+router.post('/', async (req, res) => {
+    const { slug, title, excerpt, body, gameName, developer, rating, image, pros, cons, isPublished, metaTitle, metaDescription } = req.body;
+    if (!slug || !title || !excerpt || !body || !gameName || !developer || !rating || !image) {
+        return res.status(400).json({ message: 'Please provide all required fields.' });
+    }
+    const requiredTextFields = ['title', 'excerpt', 'body'];
+    for (const field of requiredTextFields) {
+        if (typeof req.body[field] !== 'object' || !req.body[field].en || !req.body[field].hi) {
+            return res.status(400).json({ message: `Field '${field}' must be an object with 'en' and 'hi' properties.` });
+        }
+    }
+
+    try {
+        const newReview = new Review({
+            slug, title, excerpt, body, gameName, developer, rating, image, pros, cons, isPublished, metaTitle, metaDescription
+        });
+        const savedReview = await newReview.save();
+        res.status(201).json(savedReview);
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ message: `A review with slug '${slug}' already exists.` });
+        }
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   GET /api/admin/reviews/:id
+ * @desc    Get a single review by its MongoDB _id for editing
+ * @access  Private (Admin)
+ */
+router.get('/:id', async (req, res) => {
+    try {
+        const review = await Review.findById(req.params.id);
+        if (!review) { return res.status(404).json({ message: 'Review not found' }); }
+        res.json(review);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   PUT /api/admin/reviews/:id
+ * @desc    Update a review
+ * @access  Private (Admin)
+ */
+router.put('/:id', async (req, res) => {
+    try {
+        const updatedReview = await Review.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        if (!updatedReview) { return res.status(404).json({ message: 'Review not found' }); }
+        res.json(updatedReview);
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   DELETE /api/admin/reviews/:id
+ * @desc    Delete a review
+ * @access  Private (Admin)
+ */
+router.delete('/:id', async (req, res) => {
+    try {
+        const deletedReview = await Review.findByIdAndDelete(req.params.id);
+        if (!deletedReview) { return res.status(404).json({ message: 'Review not found' }); }
+        res.json({ message: 'Review deleted successfully.' });
+        // --- Rebuild trigger removed ---
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+module.exports = router;
+// END FILE: routes/admin/reviews.js
+
+//------------------------------------------------------------//
+
+// START FILE: routes/admin/settings.js
+// backend/routes/admin/settings.js
+// --- REVERTED: Removed the rebuild trigger for simplification ---
+
+const express = require('express');
+const router = express.Router();
+// fetch is no longer needed
+const { Setting } = require('../../models');
+const { protect } = require('../../middleware/authMiddleware');
+
+// Protect all routes in this file
+router.use(protect);
+
+// --- REMOVED: The triggerRebuild function is no longer needed ---
+
+/**
+ * @route   GET /api/admin/settings
+ * @desc    Get the current site settings. It will create the settings document if it doesn't exist.
+ * @access  Private (Admin)
+ */
+router.get('/', async (request, response) => {
+    try {
+        const settings = await Setting.findOneAndUpdate(
+            { key: 'siteSettings' },
+            { $setOnInsert: { key: 'siteSettings' } },
+            {
+                new: true,
+                upsert: true,
+                setDefaultsOnInsert: true
+            }
+        );
+        response.json(settings);
+    } catch (error) {
+        console.error('Error fetching/creating settings:', error);
+        response.status(500).json({ message: 'Server Error while fetching settings.', error: error.message });
+    }
+});
+
+/**
+ * @route   PUT /api/admin/settings
+ * @desc    Update the site settings.
+ * @access  Private (Admin)
+ */
+router.put('/', async (request, response) => {
+    try {
+        const updatedSettings = await Setting.findOneAndUpdate(
+            { key: 'siteSettings' },
+            request.body,
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedSettings) {
+            return response.status(404).json({ message: 'Settings document not found. Please reload the page and try again.' });
+        }
+        
+        // --- Rebuild trigger removed ---
+
+        response.json({
+            message: 'Settings updated successfully!',
+            settings: updatedSettings
+        });
+    } catch (error) {
+        console.error('Error updating settings:', error);
+        response.status(500).json({ message: 'Server Error while updating settings.', error: error.message });
+    }
+});
+
+module.exports = router;
+// END FILE: routes/admin/settings.js
+
+//------------------------------------------------------------//
+
+// START FILE: routes/admin/ui.js
+// ===== backend/routes/admin/ui.js =====
+// --- UPDATED to be more robust ---
+
+const express = require('express');
+const router = express.Router();
+const { Game, BlogPost, Review, Promotion, Setting } = require('../../models');
+
+const frontendUrl = process.env.FRONTEND_URL;
+
+// --- Dashboard and other routes are unchanged ---
+router.get('/dashboard', async (request, response) => {
+    try {
+        const [
+            gameCount, 
+            postCount, 
+            reviewCount, 
+            promotionCount,
+            recentGames,
+            recentPosts
+        ] = await Promise.all([
+            Game.countDocuments(),
+            BlogPost.countDocuments(),
+            Review.countDocuments(),
+            Promotion.countDocuments(),
+            Game.find({}).sort({ createdAt: -1 }).limit(5).select('name.en gameId createdAt _id'),
+            BlogPost.find({}).sort({ publishedAt: -1 }).limit(5).select('title.en slug publishedAt _id')
+        ]);
+
+        response.render('dashboard', {
+            user: request.user,
+            counts: { games: gameCount, posts: postCount, reviews: reviewCount, promotions: promotionCount },
+            recentItems: { games: recentGames, posts: recentPosts },
+            page: 'dashboard',
+            title: 'Dashboard',
+            frontendUrl: frontendUrl
+        });
+    } catch (error) {
+        response.status(500).send('Server Error');
+    }
+});
+
+// --- Game, Blog, Review, Promotion UI Routes (unchanged) ---
+// (GET /games, /games/new, /games/edit/:id)
+router.get('/games', (req, res) => res.render('manage-content', { user: req.user, page: 'games', title: 'Games', apiEndpoint: '/api/admin/games', frontendUrl }));
+router.get('/games/new', (req, res) => res.render('edit-game', { user: req.user, page: 'games', title: 'Create New Game', game: null, apiEndpoint: '/api/admin/games', frontendUrl }));
+router.get('/games/edit/:id', async (req, res) => {
+    try { const game = await Game.findById(req.params.id); if (!game) return res.status(404).send('Game not found'); res.render('edit-game', { user: req.user, page: 'games', title: 'Edit Game', game, apiEndpoint: `/api/admin/games/${game._id}`, frontendUrl }); } catch (e) { res.status(500).send('Server Error'); }
+});
+// (etc. for blog, reviews, promotions)
+router.get('/blog', (req, res) => res.render('manage-content', { user: req.user, page: 'blog', title: 'Blog Posts', apiEndpoint: '/api/admin/blog', frontendUrl }));
+router.get('/blog/new', (req, res) => res.render('edit-blog', { user: req.user, page: 'blog', title: 'Create New Post', post: null, apiEndpoint: '/api/admin/blog', frontendUrl }));
+router.get('/blog/edit/:id', async (req, res) => { try { const post = await BlogPost.findById(req.params.id); if (!post) return res.status(404).send('Post not found'); res.render('edit-blog', { user: req.user, page: 'blog', title: 'Edit Blog Post', post, apiEndpoint: `/api/admin/blog/${post._id}`, frontendUrl }); } catch (e) { res.status(500).send('Server Error'); } });
+router.get('/reviews', (req, res) => res.render('manage-content', { user: req.user, page: 'reviews', title: 'Reviews', apiEndpoint: '/api/admin/reviews', frontendUrl }));
+router.get('/reviews/new', (req, res) => res.render('edit-review', { user: req.user, page: 'reviews', title: 'Create New Review', review: null, apiEndpoint: '/api/admin/reviews', frontendUrl }));
+router.get('/reviews/edit/:id', async (req, res) => { try { const review = await Review.findById(req.params.id); if (!review) return res.status(404).send('Review not found'); res.render('edit-review', { user: req.user, page: 'reviews', title: 'Edit Review', review, apiEndpoint: `/api/admin/reviews/${review._id}`, frontendUrl }); } catch (e) { res.status(500).send('Server Error'); } });
+router.get('/promotions', (req, res) => res.render('manage-content', { user: req.user, page: 'promotions', title: 'Promotions', apiEndpoint: '/api/admin/promotions', frontendUrl }));
+router.get('/promotions/new', (req, res) => res.render('edit-promotion', { user: req.user, page: 'promotions', title: 'Create New Promotion', promotion: null, apiEndpoint: '/api/admin/promotions', frontendUrl }));
+router.get('/promotions/edit/:id', async (req, res) => { try { const promotion = await Promotion.findById(req.params.id); if (!promotion) return res.status(404).send('Promotion not found'); res.render('edit-promotion', { user: req.user, page: 'promotions', title: 'Edit Promotion', promotion, apiEndpoint: `/api/admin/promotions/${promotion._id}`, frontendUrl }); } catch (e) { res.status(500).send('Server Error'); } });
+
+//==============================================
+// SETTINGS UI ROUTE (IMPROVED)
+//==============================================
+
+router.get('/settings', async (request, response) => {
+    try {
+        // --- NEW LOGIC ---
+        // Use the robust "find or create" logic here. This guarantees that
+        // the settings document exists before we render the page.
+        const settings = await Setting.findOneAndUpdate(
+            { key: 'siteSettings' },
+            { $setOnInsert: { key: 'siteSettings' } },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
+        );
+
+        response.render('settings', {
+            user: request.user,
+            page: 'settings',
+            title: 'Site Settings',
+            settings: settings,
+            apiEndpoint: '/api/admin/settings',
+            frontendUrl: frontendUrl
+        });
+    } catch (error) {
+        response.status(500).send('Server Error');
+    }
+});
+
+module.exports = router;
+// END FILE: routes/admin/ui.js
+
+//------------------------------------------------------------//
+
+// START FILE: routes/admin/upload.js
+// backend/routes/admin/upload.js
+// --- UPDATED to return absolute image URLs ---
+
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const { protect } = require('../../middleware/authMiddleware');
+
+const router = express.Router();
+
+// Ensure the 'public/uploads' directory exists before we try to save files to it.
+const uploadDir = path.join(__dirname, '../../public/uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// 1. Configure Multer's Storage Engine
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        // Tell multer to save files in the 'public/uploads' directory
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        // Create a unique filename to prevent overwrites: fieldname-timestamp.extension
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+// 2. Configure Multer's File Filter to accept only images
+const fileFilter = (req, file, cb) => {
+    // A regular expression to check for allowed image mimetypes
+    const allowedMimeTypes = /jpeg|jpg|png|gif|webp/;
+    const isMimeTypeAllowed = allowedMimeTypes.test(file.mimetype);
+    const isExtensionAllowed = allowedMimeTypes.test(path.extname(file.originalname).toLowerCase());
+
+    if (isMimeTypeAllowed && isExtensionAllowed) {
+        // Accept the file
+        return cb(null, true);
+    } else {
+        // Reject the file
+        cb(new Error('Error: Only image files are allowed! (jpeg, jpg, png, gif, webp)'));
+    }
+};
+
+// 3. Initialize Multer with our configuration
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // Set a 5 MB file size limit
+    fileFilter: fileFilter
+});
+
+/**
+ * @route   POST /api/admin/upload
+ * @desc    Upload a single image. The middleware 'upload.single('image')' processes the file.
+ * @access  Private (Admin)
+ */
+router.post('/', protect, (req, res) => {
+    const uploader = upload.single('image');
+
+    uploader(req, res, function (err) {
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ message: err.message });
+        } else if (err) {
+            return res.status(400).json({ message: err.message });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file was uploaded.' });
+        }
+        
+        // --- NEW: Construct the absolute URL ---
+        const backendUrl = process.env.BACKEND_URL;
+        if (!backendUrl) {
+            console.error('CRITICAL: BACKEND_URL environment variable is not set!');
+            return res.status(500).json({ message: 'Server configuration error: Missing BACKEND_URL.' });
+        }
+        const relativePath = `/uploads/${req.file.filename}`;
+        const absolutePath = new URL(relativePath, backendUrl).href;
+        // --- END NEW ---
+
+        // If the upload was successful, respond with the public, absolute path to the file.
+        res.status(200).json({
+            message: 'Image uploaded successfully!',
+            // UPDATED: Respond with the absolute path
+            filePath: absolutePath
+        });
+    });
+});
+
+module.exports = router;
+// END FILE: routes/admin/upload.js
+
+//------------------------------------------------------------//
+
+// START FILE: routes/auth.js
+// backend/routes/auth.js
+// --- ADMIN AUTHENTICATION ROUTES ---
+
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const router = express.Router();
+
+/**
+ * @route   POST /auth/login
+ * @desc    Authenticate admin user & get token
+ * @access  Public
+ */
+router.post('/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  // 1. Basic Validation: Check if username and password were provided
+  if (!username || !password) {
+    return res.status(400).json({ message: 'Please provide both username and password.' });
+  }
+
+  try {
+    // 2. Find User: Look for the user in the database by their username (case-insensitive).
+    const user = await User.findOne({ username: username.toLowerCase() });
+
+    // 3. Validate Password:
+    // If a user is found, call the `matchPassword` method we created in the User model.
+    // This securely compares the provided password with the hashed password in the database.
+    if (user && (await user.matchPassword(password))) {
+      // 4. Generate Token: If credentials are valid, create a JWT.
+      const payload = {
+        id: user._id, // The token payload contains the user's unique ID.
+        username: user.username
+      };
+
+      const token = jwt.sign(
+        payload,
+        process.env.JWT_SECRET, // The secret key used for signing the token.
+        { expiresIn: '1d' } // The token will expire in 1 day.
+      );
+
+      // 5. Send Response: Send the user's info and the token back to the client.
+      res.json({
+        message: 'Login successful!',
+        token: token,
+        user: {
+            id: user._id,
+            username: user.username
+        }
+      });
+
+    } else {
+      // If user not found or password doesn't match, send a 401 Unauthorized error.
+      // Use a generic message for security to not reveal which field was incorrect.
+      res.status(401).json({ message: 'Invalid credentials.' });
+    }
+  } catch (error) {
+    console.error('Login Error:', error);
+    res.status(500).json({ message: 'An internal server error occurred.' });
+  }
+});
+
+module.exports = router;
+// END FILE: routes/auth.js
+
+//------------------------------------------------------------//
+
+// START FILE: routes/frontend/comments.js
+// ===== backend/routes/frontend/comments.js =====
+
+const express = require('express');
+const router = express.Router();
+const { Comment } = require('../../models');
+const mongoose = require('mongoose');
+
+/**
+ * @route   GET /api/frontend/comments/:reviewId
+ * @desc    Get all comments for a specific review, sorted by newest first.
+ * @access  Public
+ */
+router.get('/:reviewId', async (req, res) => {
+    try {
+        const { reviewId } = req.params;
+
+        // Validate that the provided ID is a valid MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+            return res.status(400).json({ message: 'Invalid Review ID format.' });
+        }
+
+        const comments = await Comment.find({ reviewId: reviewId })
+            .sort({ createdAt: -1 }) // Show newest comments first
+            .limit(50); // Limit to a reasonable number of comments per page load
+
+        // It's okay to return an empty array if there are no comments yet
+        res.json(comments);
+
+    } catch (error) {
+        console.error('Error fetching comments:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+module.exports = router;
+// END FILE: routes/frontend/comments.js
+
+//------------------------------------------------------------//
+
+// START FILE: routes/frontendApi.js
+// ===== backend/routes/frontendApi.js =====
+// --- CONSOLIDATED: Now contains all read-only routes, protected by API Key ---
+
+const express = require('express');
+const router = express.Router();
+const { Promotion, Setting, Game, BlogPost, Review } = require('../models');
+const { requireApiKey } = require('../middleware/apiKeyMiddleware');
+
+// Protect all routes in this file with the API Key middleware.
+router.use(requireApiKey);
+
+/**
+ * @route   GET /frontend-api/settings
+ * @desc    Get the global site settings.
+ * @access  Private (API Key)
+ */
+router.get('/settings', async (request, response) => {
+    try {
+        const settings = await Setting.findOne({ key: 'siteSettings' });
+        if (!settings) {
+            return response.status(404).json({ message: 'Site settings not found.' });
+        }
+        response.json(settings);
+    } catch (error) {
+        response.status(500).json({ message: 'Server error while fetching settings.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/promotions
+ * @desc    Get all published promotions.
+ * @access  Private (API Key)
+ */
+router.get('/promotions', async (request, response) => {
+    try {
+        const lang = request.query.lang || 'en';
+        const promotions = await Promotion.find({ isPublished: true }).sort({ displayOrder: 1, createdAt: -1 });
+
+        const translatedPromotions = promotions.map(promo => {
+            const langKey = lang === 'hi' ? 'hi' : 'en';
+            return {
+                _id: promo._id,
+                slug: promo.slug,
+                title: promo.title[langKey],
+                subtitle: promo.subtitle ? promo.subtitle[langKey] : '',
+                description: promo.description[langKey],
+                details: promo.details ? promo.details[langKey] : [],
+                ctaText: promo.ctaText ? promo.ctaText[langKey] : '',
+                badgeText: promo.badgeText ? promo.badgeText[langKey] : '',
+                imageUrl: promo.imageUrl,
+                ctaLink: promo.ctaLink,
+                badgeColor: promo.badgeColor,
+            };
+        });
+            
+        response.json(translatedPromotions);
+    } catch (error) {
+        response.status(500).json({ message: 'Server error while fetching promotions.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/games
+ * @desc    Get all active games.
+ * @access  Private (API Key)
+ */
+router.get('/games', async (req, res) => {
+    try {
+        const lang = req.query.lang === 'hi' ? 'hi' : 'en';
+        const gamesFromDb = await Game.find({ isActive: true }).sort({ createdAt: -1 });
+        const formattedGames = gamesFromDb.map(game => ({
+            _id: game._id,
+            gameId: game.gameId,
+            name: game.name[lang],
+            category: game.category,
+            provider: game.provider,
+            image: game.image,
+            isNew: game.isNew,
+            isHot: game.isHot,
+        }));
+        res.json(formattedGames);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while fetching games.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/blog
+ * @desc    Get all published blog posts.
+ * @access  Private (API Key)
+ */
+router.get('/blog', async (req, res) => {
+    try {
+        const lang = req.query.lang === 'hi' ? 'hi' : 'en';
+        const postsFromDb = await BlogPost.find({ isPublished: true }).sort({ publishedAt: -1 });
+        const formattedPosts = postsFromDb.map(post => ({
+            _id: post._id,
+            slug: post.slug,
+            title: post.title[lang],
+            excerpt: post.excerpt[lang],
+            author: post.author,
+            image: post.image,
+            tags: post.tags,
+            publishedAt: post.publishedAt
+        }));
+        res.json(formattedPosts);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while fetching blog posts.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/blog/:slug
+ * @desc    Get a single blog post by its slug.
+ * @access  Private (API Key)
+ */
+router.get('/blog/:slug', async (req, res) => {
+    try {
+        const lang = req.query.lang || 'en';
+        const post = await BlogPost.findOne({ slug: req.params.slug, isPublished: true })
+            .select({
+                [`title.${lang === 'en' ? 'hi' : 'en'}`]: 0,
+                [`excerpt.${lang === 'en' ? 'hi' : 'en'}`]: 0,
+                [`body.${lang === 'en' ? 'hi' : 'en'}`]: 0,
+            });
+        if (!post) {
+            return res.status(404).json({ message: 'Blog post not found.' });
+        }
+        res.json(post);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while fetching blog post.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/reviews
+ * @desc    Get all published reviews.
+ * @access  Private (API Key)
+ */
+router.get('/reviews', async (req, res) => {
+    try {
+        const lang = req.query.lang || 'en';
+        
+        // --- THE FIX STARTS HERE ---
+        // 1. Fetch the documents, selecting the full title and excerpt objects.
+        const reviewsFromDb = await Review.find({ isPublished: true })
+            .select('slug title excerpt gameName rating image')
+            .sort({ createdAt: -1 })
+            .lean(); // Use .lean() for better performance as we don't need Mongoose methods.
+
+        // 2. Manually transform the data into the simple format the frontend needs.
+        const formattedReviews = reviewsFromDb.map(review => ({
+            _id: review._id,
+            slug: review.slug,
+            title: review.title ? review.title[lang] : '', // Safely access the language key
+            excerpt: review.excerpt ? review.excerpt[lang] : '', // Safely access the language key
+            gameName: review.gameName,
+            rating: review.rating,
+            image: review.image,
+        }));
+        // --- THE FIX ENDS HERE ---
+
+        res.json(formattedReviews);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while fetching reviews.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/reviews/:slug
+ * @desc    Get a single review by its slug.
+ * @access  Private (API Key)
+ */
+router.get('/reviews/:slug', async (req, res) => {
+    try {
+        const lang = req.query.lang || 'en';
+        const review = await Review.findOne({ slug: req.params.slug, isPublished: true })
+            .select({
+                [`title.${lang === 'en' ? 'hi' : 'en'}`]: 0,
+                [`excerpt.${lang === 'en' ? 'hi' : 'en'}`]: 0,
+                [`body.${lang === 'en' ? 'hi' : 'en'}`]: 0,
+                [`pros.${lang === 'en' ? 'hi' : 'en'}`]: 0,
+                [`cons.${lang === 'en' ? 'hi' : 'en'}`]: 0,
+            });
+        if (!review) {
+            return res.status(404).json({ message: 'Review not found.' });
+        }
+        res.json(review);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while fetching review.' });
+    }
+});
+
+module.exports = router;
+// END FILE: routes/frontendApi.js
+
+//------------------------------------------------------------//
+
+// START FILE: routes/publicApi.js
+// ===== backend/routes/publicApi.js =====
+// --- DEPRECATED: All routes have been moved to frontendApi.js for enhanced security ---
+
+const express = require('express');
+const router = express.Router();
+
+// This file no longer contains any active routes.
+// It can be safely removed or left empty.
+
+module.exports = router;
+// END FILE: routes/publicApi.js
+
+//------------------------------------------------------------//
+

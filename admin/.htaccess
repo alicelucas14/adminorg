@@ -1,0 +1,86 @@
+#
+# === Phusion Passenger & Node.js Rules for Starsuu7 Backend ===
+#
+# This tells the server to enable the engine that runs Node.js
+PassengerEnabled on
+# This tells Passenger what version of Node to use.
+# This path is correct from your cPanel setup.
+PassengerNodejs "/home/channe16/nodevenv/starsuu7s/backend/22/bin/node"
+# This is the full server path to your application's root folder.
+PassengerAppRoot "/home/channe16/starsuu7s/backend"
+# --- THE FIRST FIX ---
+# This tells the server that your Node.js app should ONLY handle URLs starting with /admin.
+PassengerBaseURI "/admin"
+# Standard settings for a Node.js application.
+PassengerAppType node
+PassengerStartupFile server.js
+# ------------------------------------------------------------
+# Starsuu7 / Astro static site – .htaccess (Apache)
+# ------------------------------------------------------------
+# 1) Basic hardening + clean defaults
+ServerSignature Off
+FileETag None
+Options -Indexes
+# 2) Serve index.html by default
+DirectoryIndex index.html
+# 3) Enable Rewrite engine
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  
+  # --- THE SECOND FIX ---
+  # This new line tells the rewrite rules to IGNORE any path that starts with /admin.
+  # This stops the conflict and lets Passenger handle the /admin routes.
+  RewriteCond %{REQUEST_URI} !^/admin
+  
+  # SPA-style routing: let existing files/folders pass through,
+  # otherwise serve index.html for client-side routes.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+# 4) Compression (Brotli > Gzip)
+<IfModule mod_brotli.c>
+  BrotliCompressionQuality 5
+  AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml image/svg+xml
+</IfModule>
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml image/svg+xml
+  Header append Vary Accept-Encoding
+</IfModule>
+# 5) Long-term caching for hashed build assets
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/javascript "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/x-icon "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType font/ttf "access plus 1 year"
+  ExpiresByType font/otf "access plus 1 year"
+  ExpiresByType application/font-woff "access plus 1 year"
+  ExpiresByType application/font-woff2 "access plus 1 year"
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+# Also set explicit Cache-Control
+<FilesMatch "\.(css|js|mjs|svg|ico|png|jpg|jpeg|webp|gif|woff|woff2|ttf|otf)$">
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</FilesMatch>
+<FilesMatch "\.(html)$">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+</FilesMatch>
+# 6) CORS for web fonts
+<FilesMatch "\.(ttf|otf|eot|woff|woff2)$">
+  Header set Access-Control-Allow-Origin "*"
+</FilesMatch>
+# 7) Security headers (safe defaults)
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "geolocation=(), camera=(), microphone=()"
+</IfModule>
+# 8) Block access to hidden files (.git, .env, etc.)
+RedirectMatch 404 /\..*$

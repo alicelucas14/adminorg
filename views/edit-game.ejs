@@ -1,0 +1,228 @@
+<!-- backend/views/edit-game.ejs -->
+<!-- CORRECTED to use relative image paths for the admin panel -->
+
+<%- include('partials/_header') %>
+<%- include('partials/_sidebar') %>
+
+<div class="max-w-4xl mx-auto">
+    <!-- Back Navigation Link -->
+    <div class="mb-4">
+        <a href="<%= adminBase %>/games" class="inline-flex items-center text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
+            <i class="ri-arrow-left-s-line mr-1 text-lg"></i>
+            Back to Games
+        </a>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card">
+        <div class="p-6 border-b border-gray-200">
+             <h2 class="text-2xl font-bold text-gray-800"><%= title %></h2>
+             <p class="mt-1 text-sm text-gray-500">Fill in the details to create or update a game.</p>
+        </div>
+       
+        <form id="gameForm">
+            <div class="p-6 space-y-6">
+                <!-- Game ID -->
+                <div>
+                    <label for="gameId" class="block text-sm font-medium text-gray-700">Game ID (Unique Slug)</label>
+                    <input type="text" id="gameId" value="<%= game ? game.gameId : '' %>" required <%= game ? 'readonly' : '' %>
+                           class="form-input <%= game ? 'bg-gray-100 cursor-not-allowed' : '' %>">
+                    <% if (game) { %>
+                        <p class="mt-2 text-xs text-gray-500">The Game ID cannot be changed after creation.</p>
+                    <% } %>
+                </div>
+
+                <!-- Name (English & Hindi) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="name_en" class="block text-sm font-medium text-gray-700">Name (English)</label>
+                        <input type="text" id="name_en" value="<%= game ? game.name.en : '' %>" required class="form-input">
+                    </div>
+                    <div>
+                        <label for="name_hi" class="block text-sm font-medium text-gray-700">Name (Hindi)</label>
+                        <input type="text" id="name_hi" value="<%= game ? game.name.hi : '' %>" required class="form-input">
+                    </div>
+                </div>
+
+                <!-- Category & Provider -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
+                        <select id="category" required class="form-select">
+                            <% const categories = ['slots', 'live-casino', 'card-games', 'quick-games', 'fishing', 'sports']; %>
+                            <% categories.forEach(cat => { %>
+                                <option value="<%= cat %>" <%= game && game.category === cat ? 'selected' : '' %>><%= cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ') %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="provider" class="block text-sm font-medium text-gray-700">Provider</label>
+                        <input type="text" id="provider" value="<%= game ? game.provider : '' %>" required class="form-input">
+                    </div>
+                </div>
+
+                <!-- Image Upload Component -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Game Image</label>
+                    <div class="mt-2 flex items-center space-x-6">
+                        <!-- Image Preview -->
+                        <div id="image-preview-container" class="shrink-0">
+                            <!-- THIS IS THE CORRECTED LINE -->
+                            <img id="image-preview" 
+                                 src="<%= (game && game.image) ? game.image : 'https://via.placeholder.com/128' %>" 
+                                 alt="Image preview" 
+                                 class="h-32 w-32 object-cover rounded-md">
+                        </div>
+                        <div class="flex-grow">
+                            <!-- Hidden input to store the final image path -->
+                            <input type="hidden" id="image" value="<%= game ? game.image : '' %>">
+                            
+                            <!-- Custom styled upload button -->
+                            <label for="image-upload-input" class="btn btn-secondary cursor-pointer">
+                                <span>Choose Image</span>
+                            </label>
+                            <input id="image-upload-input" type="file" class="sr-only">
+                            <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF, WEBP up to 5MB.</p>
+                            
+                            <!-- Upload Status/Progress -->
+                            <div id="upload-status" class="mt-2 text-sm"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Checkboxes -->
+                <div class="space-y-4">
+                    <label class="block text-sm font-medium text-gray-700">Flags</label>
+                    <div class="flex items-center space-x-8">
+                         <div class="flex items-center">
+                            <input id="isHot" type="checkbox" <%= game && game.isHot ? 'checked' : '' %> class="form-checkbox">
+                            <label for="isHot" class="ml-2 block text-sm text-gray-900">Is Hot?</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input id="isNew" type="checkbox" <%= game && game.isNew ? 'checked' : '' %> class="form-checkbox">
+                            <label for="isNew" class="ml-2 block text-sm text-gray-900">Is New?</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input id="isActive" type="checkbox" <%= (game && game.isActive) || !game ? 'checked' : '' %> class="form-checkbox">
+                            <label for="isActive" class="ml-2 block text-sm text-gray-900">Is Active?</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Form Footer -->
+            <div class="bg-gray-50 p-4 flex justify-end rounded-b-lg">
+                <button type="submit" id="submitButton" class="btn btn-primary">
+                    <%= game ? 'Update Game' : 'Create Game' %>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // --- Image Upload Logic ---
+    const imageUploadInput = document.getElementById('image-upload-input');
+    const imagePreview = document.getElementById('image-preview');
+    const imagePathInput = document.getElementById('image'); // The hidden input
+    const uploadStatus = document.getElementById('upload-status');
+
+    imageUploadInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            imagePreview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+        
+        const formData = new FormData();
+        formData.append('image', file);
+        uploadStatus.textContent = 'Uploading...';
+        uploadStatus.className = 'mt-2 text-sm text-gray-600';
+
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch('/api/admin/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Upload failed');
+            
+            imagePathInput.value = result.filePath;
+            // AFTER a successful upload, we update the preview to use the final server path.
+            // This confirms the path is correct before saving.
+            imagePreview.src = result.filePath; 
+            uploadStatus.textContent = 'Upload successful!';
+            uploadStatus.className = 'mt-2 text-sm text-green-600 font-medium';
+        } catch (error) {
+            uploadStatus.textContent = `Error: ${error.message}`;
+            uploadStatus.className = 'mt-2 text-sm text-red-600 font-medium';
+        }
+    });
+
+    // --- Form Submission Logic (unchanged) ---
+    const form = document.getElementById('gameForm');
+    const submitButton = document.getElementById('submitButton');
+    const method = '<%= game ? "PUT" : "POST" %>';
+    const apiEndpoint = '<%= apiEndpoint %>';
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!imagePathInput.value) {
+            showToast('Please upload an image first.', 'error');
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
+
+        const formData = {
+            gameId: document.getElementById('gameId').value,
+            name: {
+                en: document.getElementById('name_en').value,
+                hi: document.getElementById('name_hi').value,
+            },
+            category: document.getElementById('category').value,
+            provider: document.getElementById('provider').value,
+            image: imagePathInput.value,
+            isHot: document.getElementById('isHot').checked,
+            isNew: document.getElementById('isNew').checked,
+            isActive: document.getElementById('isActive').checked,
+        };
+        
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token=')).split('=')[1];
+            
+            const response = await fetch(apiEndpoint, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'An error occurred.');
+
+            showToast('Game saved successfully!', 'success');
+            
+            setTimeout(() => {
+                window.location.href = '<%= adminBase %>/games';
+            }, 1000);
+
+        } catch (error) {
+            showToast(error.message, 'error');
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<%= game ? "Update Game" : "Create Game" %>';
+        }
+    });
+</script>
+
+<%- include('partials/_footer') %>

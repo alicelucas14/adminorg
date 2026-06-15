@@ -1,0 +1,334 @@
+<!-- backend/views/manage-content.ejs -->
+<!-- FINAL UPDATE: Added AI Comment Generation for Blog Posts & Reviews (Single and Bulk) -->
+
+<%- include('partials/_header') %>
+<%- include('partials/_sidebar') %>
+
+<!-- Page Header & Actions -->
+<div class="mb-6 md:flex md:justify-between md:items-center">
+    <div>
+        <h2 class="text-3xl font-bold text-gray-800">Manage <%= title %></h2>
+        <p class="text-gray-500 mt-1">View, edit, and manage all your content in one place.</p>
+    </div>
+    <div class="mt-4 md:mt-0">
+        <a href="<%= adminBase %>/<%= page %>/new" class="btn btn-primary">
+            <i class="ri-add-line mr-1"></i> Create New
+        </a>
+    </div>
+</div>
+
+<!-- Search and Filter Bar -->
+<div class="mb-4 card p-4 flex justify-between items-center">
+    <div class="relative w-full max-w-sm">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="ri-search-line text-gray-400"></i>
+        </div>
+        <input type="text" id="search-input" placeholder="Search by name, ID, or slug..." class="form-input !mt-0 pl-10 w-full">
+    </div>
+</div>
+
+
+<!-- Bulk Actions Toolbar -->
+<div id="bulk-actions-toolbar" class="hidden mb-4 bg-primary-50 border border-primary-200 p-3 rounded-lg md:flex md:items-center md:justify-between">
+    <span id="selection-count" class="text-sm font-semibold text-primary-800"></span>
+    <div class="flex items-center space-x-2 mt-2 md:mt-0">
+        <select id="bulk-action-select" class="form-select !mt-0 py-1.5">
+            <option value="">Bulk Actions</option>
+            <option value="delete">Delete Selected</option>
+            <% if (page === 'reviews') { %>
+                <option value="generate-review-comments">Generate AI Comments</option>
+            <% } %>
+            <% if (page === 'blog') { %>
+                <option value="generate-blog-comments">Generate AI Comments</option>
+            <% } %>
+        </select>
+        <button id="apply-bulk-action-btn" class="btn btn-primary py-1.5">Apply</button>
+    </div>
+</div>
+
+<!-- Content Table Card -->
+<div class="card overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th scope="col" class="p-4">
+                    <input type="checkbox" id="select-all-checkbox" class="form-checkbox">
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title / Name</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
+                <th scope="col" class="relative px-6 py-3">
+                    <span class="sr-only">Actions</span>
+                </th>
+            </tr>
+        </thead>
+        <tbody id="content-table-body" class="bg-white divide-y divide-gray-200">
+            <!-- Loading State -->
+            <tr id="loadingRow">
+                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                    <div class="flex justify-center items-center">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                        <span class="ml-3">Loading content...</span>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <!-- Pagination Controls -->
+    <div id="pagination-controls" class="p-4 flex items-center justify-between border-t border-gray-200"></div>
+</div>
+
+<script>
+    // --- STATE & DOM ELEMENTS ---
+    const apiEndpoint = '<%= apiEndpoint %>';
+    const pageType = '<%= page %>';
+    let currentPage = 1, totalPages = 1;
+    let selectedIds = new Set();
+    let currentSearchQuery = '', debounceTimer; 
+
+    const tableBody = document.getElementById('content-table-body');
+    const searchInput = document.getElementById('search-input');
+    const loadingRow = document.getElementById('loadingRow');
+    const paginationControls = document.getElementById('pagination-controls');
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    const bulkActionsToolbar = document.getElementById('bulk-actions-toolbar');
+    const selectionCountSpan = document.getElementById('selection-count');
+    const applyBulkActionBtn = document.getElementById('apply-bulk-action-btn');
+
+    // --- HELPER & RENDER FUNCTIONS ---
+    const getToken = () => document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] || null;
+
+    const updateBulkActionsUI = () => {
+        if (selectedIds.size > 0) {
+            bulkActionsToolbar.classList.remove('hidden');
+            selectionCountSpan.textContent = `${selectedIds.size} item(s) selected`;
+            applyBulkActionBtn.disabled = document.getElementById('bulk-action-select').value === '';
+        } else {
+            bulkActionsToolbar.classList.add('hidden');
+        }
+        const allVisibleCheckboxes = document.querySelectorAll('.item-checkbox');
+        selectAllCheckbox.checked = allVisibleCheckboxes.length > 0 && Array.from(allVisibleCheckboxes).every(cb => cb.checked);
+    };
+
+    const renderTable = (items) => {
+        tableBody.innerHTML = '';
+        if (items.length === 0) { tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-gray-500">No content found.</td></tr>`; return; }
+        
+        items.forEach(item => {
+            const row = document.createElement('tr');
+            row.id = `row-${item._id}`;
+            const title = item.title?.en || item.name?.en || 'N/A';
+            const status = item.isPublished ?? item.isActive ?? true;
+            const updatedDate = new Date(item.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            const imageUrl = item.image || item.imageUrl || 'https://via.placeholder.com/100x60';
+
+            let aiCommentsButton = '';
+            if (pageType === 'reviews') {
+                aiCommentsButton = `<button class="text-blue-600 hover:text-blue-900 generate-review-comments-btn font-medium" data-id="${item._id}">AI Comments</button>`;
+            } else if (pageType === 'blog') {
+                aiCommentsButton = `<button class="text-blue-600 hover:text-blue-900 generate-blog-comments-btn font-medium" data-id="${item._id}">AI Comments</button>`;
+            }
+
+            row.innerHTML = `
+                <td class="p-4"><input type="checkbox" class="item-checkbox form-checkbox" data-id="${item._id}"></td>
+                <td class="px-6 py-4"><img src="${imageUrl}" alt="Image for ${title}" class="w-20 h-12 object-cover rounded-md bg-gray-100"></td>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${title}</div><div class="text-xs text-gray-500">${item.slug || item.gameId}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${status ? 'Published' : 'Draft'}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${updatedDate}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                    ${aiCommentsButton}
+                    <a href="<%= adminBase %>/${pageType}/edit/${item._id}" class="text-primary-600 hover:text-primary-900 font-medium">Edit</a>
+                    <button class="text-red-600 hover:text-red-900 delete-btn font-medium" data-id="${item._id}">Delete</button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    };
+
+    const renderPagination = (totalItems) => {
+        paginationControls.innerHTML = '';
+        if (totalPages <= 1) return;
+        let paginationHTML = `
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div><p class="text-sm text-gray-700">Showing <span class="font-medium">${(currentPage - 1) * 10 + 1}</span> to <span class="font-medium">${Math.min(currentPage * 10, totalItems)}</span> of <span class="font-medium">${totalItems}</span> results</p></div>
+                <div><nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination"><button id="prev-desktop" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Prev</button><span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">Page ${currentPage} of ${totalPages}</span><button id="next-desktop" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</button></nav></div>
+            </div>`;
+        paginationControls.innerHTML = paginationHTML;
+        const prevButton = document.getElementById('prev-desktop');
+        const nextButton = document.getElementById('next-desktop');
+        prevButton.disabled = currentPage === 1;
+        if (prevButton) prevButton.onclick = () => fetchContent(currentPage - 1);
+        nextButton.disabled = currentPage === totalPages;
+        if (nextButton) nextButton.onclick = () => fetchContent(currentPage + 1);
+    };
+    
+    // --- DATA FETCHING ---
+    const fetchContent = async (page = 1) => {
+        loadingRow.style.display = 'table-row';
+        tableBody.innerHTML = '';
+        selectedIds.clear();
+        updateBulkActionsUI();
+        let url = `${apiEndpoint}?page=${page}&limit=10`;
+        if (currentSearchQuery) url += `&search=${encodeURIComponent(currentSearchQuery)}`;
+        try {
+            const token = getToken();
+            if (!token) throw new Error('Authentication token not found.');
+            const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!response.ok) { if (response.status === 401) window.location.href = '<%= adminBase %>'; throw new Error('Failed to fetch data.'); }
+            const { data, totalItems, currentPage: apiCurrentPage, totalPages: apiTotalPages } = await response.json();
+            loadingRow.style.display = 'none';
+            currentPage = apiCurrentPage;
+            totalPages = apiTotalPages;
+            renderTable(data);
+            renderPagination(totalItems);
+        } catch (error) {
+            console.error('Error:', error);
+            loadingRow.style.display = 'none';
+            tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-red-500">Error: ${error.message}</td></tr>`;
+        }
+    };
+
+    // --- ACTION HANDLERS ---
+    const handleBulkDelete = async () => {
+        if (confirm(`Are you sure you want to delete ${selectedIds.size} item(s)?`)) {
+            try {
+                const response = await fetch(`${apiEndpoint}/bulk-delete`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: Array.from(selectedIds) })
+                });
+                if (!response.ok) throw new Error('Failed to delete items.');
+                showToast(`${selectedIds.size} item(s) deleted successfully.`, 'success');
+                fetchContent(currentPage); // Refreshes and clears selection
+            } catch (error) { showToast(`Error: ${error.message}`, 'error'); }
+        }
+    };
+
+    const handleSingleAiComments = async (target, endpoint) => {
+        const id = target.dataset.id;
+        const count = prompt('How many comments to generate?', '5');
+        if (!count || isNaN(parseInt(count)) || parseInt(count) <= 0) return;
+
+        target.disabled = true;
+        target.textContent = 'Generating...';
+
+        try {
+            const body = pageType === 'reviews' ? { reviewId: id, count: parseInt(count) } : { postId: id, count: parseInt(count) };
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Failed to generate comments.');
+            showToast(result.message, 'success');
+        } catch (error) {
+            showToast(`Error: ${error.message}`, 'error');
+        } finally {
+            target.disabled = false;
+            target.textContent = 'AI Comments';
+        }
+    };
+    
+    const handleBulkAiComments = async (endpoint, bodyKey) => {
+        const count = prompt(`Generate how many comments for each of the ${selectedIds.size} selected items?`, '3');
+        if (!count || isNaN(parseInt(count)) || parseInt(count) <= 0) return;
+
+        showToast(`Starting bulk generation for ${selectedIds.size} items. This may take a moment...`, 'success');
+        applyBulkActionBtn.disabled = true;
+        applyBulkActionBtn.textContent = 'Generating...';
+
+        try {
+            const body = { [bodyKey]: Array.from(selectedIds), count: parseInt(count) };
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Bulk generation failed.');
+            showToast(result.message, 'success');
+            if (result.failures > 0) {
+                console.warn('Bulk generation failures:', result.failedReviews || result.failedPosts);
+                alert(`${result.failures} item(s) failed to generate comments. Check console for details.`);
+            }
+        } catch (error) {
+            showToast(`Error: ${error.message}`, 'error');
+        } finally {
+            applyBulkActionBtn.disabled = false;
+            applyBulkActionBtn.textContent = 'Apply';
+            fetchContent(currentPage); // Refresh to clear selections
+        }
+    };
+    
+    // --- EVENT LISTENERS ---
+    searchInput.addEventListener('keyup', (e) => {
+        clearTimeout(debounceTimer);
+        const searchTerm = e.target.value;
+        debounceTimer = setTimeout(() => {
+            if (searchTerm !== currentSearchQuery) {
+                currentSearchQuery = searchTerm;
+                fetchContent(1); 
+            }
+        }, 300);
+    });
+
+    tableBody.addEventListener('click', async (e) => {
+        const target = e.target;
+        if (target.classList.contains('delete-btn')) {
+            const id = target.dataset.id;
+            if (confirm('Are you sure you want to delete this item?')) {
+                try {
+                    const response = await fetch(`${apiEndpoint}/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${getToken()}` } });
+                    if (!response.ok) throw new Error('Failed to delete item.');
+                    document.getElementById(`row-${id}`).remove();
+                    showToast('Item deleted.', 'success');
+                    fetchContent(currentPage);
+                } catch (error) { showToast(`Error: ${error.message}`, 'error'); }
+            }
+        }
+        if (target.classList.contains('item-checkbox')) {
+            const id = target.dataset.id;
+            if (target.checked) selectedIds.add(id); else selectedIds.delete(id);
+            updateBulkActionsUI();
+        }
+        if (target.classList.contains('generate-review-comments-btn')) {
+            handleSingleAiComments(target, '/api/admin/comments/generate');
+        }
+        if (target.classList.contains('generate-blog-comments-btn')) {
+            handleSingleAiComments(target, '/api/admin/blog-comments/generate');
+        }
+    });
+
+    selectAllCheckbox.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+            checkbox.checked = isChecked;
+            const id = checkbox.dataset.id;
+            if (isChecked) selectedIds.add(id); else selectedIds.delete(id);
+        });
+        updateBulkActionsUI();
+    });
+    
+    document.getElementById('bulk-action-select').addEventListener('change', updateBulkActionsUI);
+
+    applyBulkActionBtn.addEventListener('click', () => {
+        const action = document.getElementById('bulk-action-select').value;
+        if (selectedIds.size === 0) return;
+
+        if (action === 'delete') {
+            handleBulkDelete();
+        } else if (action === 'generate-review-comments') {
+            handleBulkAiComments('/api/admin/comments/bulk-generate', 'reviewIds');
+        } else if (action === 'generate-blog-comments') {
+            handleBulkAiComments('/api/admin/blog-comments/bulk-generate', 'postIds');
+        }
+    });
+
+    // --- INITIAL FETCH ---
+    fetchContent(currentPage);
+</script>
+
+<%- include('partials/_footer') %>

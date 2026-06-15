@@ -1,0 +1,117 @@
+<!-- backend/views/dashboard.ejs -->
+
+<%- include('partials/_header') %>
+<%- include('partials/_sidebar') %>
+
+<!-- Stat Widgets Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    
+    <!-- Games Widget -->
+    <div class="card p-6 flex items-center">
+        <div class="bg-primary-100 text-primary-600 rounded-full p-3 mr-4">
+            <i class="ri-gamepad-line text-3xl"></i>
+        </div>
+        <div>
+            <p class="text-gray-500 text-sm font-medium">Total Games</p>
+            <p class="text-3xl font-bold text-gray-800"><%= counts.games %></p>
+        </div>
+    </div>
+
+    <!-- Blog Posts Widget -->
+    <div class="card p-6 flex items-center">
+        <div class="bg-green-100 text-green-600 rounded-full p-3 mr-4">
+            <i class="ri-article-line text-3xl"></i>
+        </div>
+        <div>
+            <p class="text-gray-500 text-sm font-medium">Blog Posts</p>
+            <p class="text-3xl font-bold text-gray-800"><%= counts.posts %></p>
+        </div>
+    </div>
+
+    <!-- Reviews Widget -->
+    <div class="card p-6 flex items-center">
+        <div class="bg-yellow-100 text-yellow-600 rounded-full p-3 mr-4">
+            <i class="ri-star-line text-3xl"></i>
+        </div>
+        <div>
+            <p class="text-gray-500 text-sm font-medium">Game Reviews</p>
+            <p class="text-3xl font-bold text-gray-800"><%= counts.reviews %></p>
+        </div>
+    </div>
+
+    <!-- Promotions Widget -->
+    <div class="card p-6 flex items-center">
+        <div class="bg-purple-100 text-purple-600 rounded-full p-3 mr-4">
+            <i class="ri-gift-line text-3xl"></i>
+        </div>
+        <div>
+            <p class="text-gray-500 text-sm font-medium">Promotions</p>
+            <p class="text-3xl font-bold text-gray-800"><%= counts.promotions %></p>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity Section -->
+<div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Recently Added Games Card -->
+    <div class="card">
+        <div class="p-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-800">Recently Added Games</h2>
+        </div>
+        <div class="p-4">
+            <% if (recentItems.games && recentItems.games.length > 0) { %>
+                <ul class="space-y-3">
+                    <% recentItems.games.forEach(game => { %>
+                        <li class="flex justify-between items-center group">
+                            <div>
+                                <p class="font-medium text-gray-800"><%= game.name.en %></p>
+                                <p class="text-xs text-gray-500">ID: <%= game.gameId %> | Added: <%= new Date(game.createdAt).toLocaleDateString() %></p>
+                            </div>
+                            <a href="<%= adminBase %>/games/edit/<%= game._id %>" class="btn btn-secondary text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                                Edit
+                            </a>
+                        </li>
+                    <% }); %>
+                </ul>
+            <% } else { %>
+                <p class="text-gray-500 text-center py-4">No recent games found.</p>
+            <% } %>
+        </div>
+        <div class="p-3 bg-gray-50 border-t border-gray-200 text-center rounded-b-lg">
+            <a href="<%= adminBase %>/games" class="text-sm font-medium text-primary-600 hover:text-primary-800">View All Games &rarr;</a>
+        </div>
+    </div>
+
+    <!-- Recent Blog Posts Card -->
+    <div class="card">
+        <div class="p-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-800">Recent Blog Posts</h2>
+        </div>
+        <div class="p-4">
+            <% if (recentItems.posts && recentItems.posts.length > 0) { %>
+                <ul class="space-y-3">
+                    <% recentItems.posts.forEach(post => { %>
+                         <li class="flex justify-between items-center group">
+                            <div>
+                                <p class="font-medium text-gray-800"><%= post.title.en %></p>
+                                <p class="text-xs text-gray-500">Published: <%= new Date(post.publishedAt).toLocaleDateString() %></p>
+                            </div>
+                            <a href="<%= adminBase %>/blog/edit/<%= post._id %>" class="btn btn-secondary text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                                Edit
+                            </a>
+                        </li>
+                    <% }); %>
+                </ul>
+            <% } else { %>
+                <p class="text-gray-500 text-center py-4">No recent blog posts found.</p>
+            <% } %>
+        </div>
+        <div class="p-3 bg-gray-50 border-t border-gray-200 text-center rounded-b-lg">
+            <a href="<%= adminBase %>/blog" class="text-sm font-medium text-primary-600 hover:text-primary-800">View All Posts &rarr;</a>
+        </div>
+    </div>
+
+</div>
+
+<%- include('partials/_footer') %>

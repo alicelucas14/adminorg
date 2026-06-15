@@ -1,0 +1,262 @@
+<!-- backend/views/edit-review.ejs -->
+<!-- CORRECTED to use relative image paths for the admin panel -->
+
+<%- include('partials/_header') %>
+<!-- EasyMDE CSS -->
+<link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
+<!-- Custom styles to override EasyMDE defaults -->
+<style>
+    .editor-toolbar {
+        border-top-left-radius: 0.375rem;
+        border-top-right-radius: 0.375rem;
+        border-color: #cbd5e1; /* gray-300 */
+    }
+    .CodeMirror {
+        border-bottom-left-radius: 0.375rem;
+        border-bottom-right-radius: 0.375rem;
+        border-color: #cbd5e1; /* gray-300 */
+    }
+    .cm-s-easymde .CodeMirror-cursor {
+        border-left: 1px solid #1e293b; /* gray-800 */
+    }
+</style>
+<%- include('partials/_sidebar') %>
+
+<div class="max-w-4xl mx-auto">
+    <!-- Back Navigation Link -->
+    <div class="mb-4">
+        <a href="<%= adminBase %>/reviews" class="inline-flex items-center text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
+            <i class="ri-arrow-left-s-line mr-1 text-lg"></i>
+            Back to Reviews
+        </a>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-800"><%= title %></h2>
+            <p class="mt-1 text-sm text-gray-500">Write and edit detailed game reviews with ratings, pros, and cons.</p>
+        </div>
+
+        <form id="reviewForm">
+            <div class="p-6 space-y-6">
+                <!-- Slug & Title -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="slug" class="block text-sm font-medium text-gray-700">Slug (URL Identifier)</label>
+                        <input type="text" id="slug" value="<%= review ? review.slug : '' %>" required <%= review ? 'readonly' : '' %>
+                               class="form-input <%= review ? 'bg-gray-100 cursor-not-allowed' : '' %>">
+                    </div>
+                    <div>
+                        <label for="title_en" class="block text-sm font-medium text-gray-700">Title (English)</label>
+                        <input type="text" id="title_en" value="<%= review ? review.title.en : '' %>" required class="form-input">
+                    </div>
+                </div>
+                <div class="hidden">
+                     <label for="title_hi" class="block text-sm font-medium text-gray-700">Title (Hindi)</label>
+                     <input type="text" id="title_hi" value="<%= review ? review.title.hi : '' %>" required class="form-input">
+                </div>
+
+                <!-- Body (English) with Markdown Editor -->
+                <div>
+                    <label for="body_en" class="block text-sm font-medium text-gray-700 mb-1">Body Content (English)</label>
+                    <textarea id="body_en"><%= review ? review.body.en : '' %></textarea>
+                </div>
+                <!-- Body (Hindi) with Markdown Editor -->
+                <div>
+                    <label for="body_hi" class="block text-sm font-medium text-gray-700 mb-1">Body Content (Hindi)</label>
+                    <textarea id="body_hi"><%= review ? review.body.hi : '' %></textarea>
+                </div>
+                
+                <!-- Review Metadata Section -->
+                 <div class="space-y-6 border-t border-gray-200 pt-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label for="gameName" class="block text-sm font-medium text-gray-700">Game Name</label>
+                            <input type="text" id="gameName" value="<%= review ? review.gameName : '' %>" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="developer" class="block text-sm font-medium text-gray-700">Developer</label>
+                            <input type="text" id="developer" value="<%= review ? review.developer : '' %>" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="rating" class="block text-sm font-medium text-gray-700">Rating (1-5)</label>
+                            <input type="number" id="rating" value="<%= review ? review.rating : '' %>" required min="1" max="5" step="0.1" class="form-input">
+                        </div>
+                    </div>
+                    
+                    <!-- Image Upload Component -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Review Image</label>
+                        <div class="mt-2 flex items-center space-x-6">
+                            <div class="shrink-0">
+                                <!-- THIS IS THE CORRECTED LINE -->
+                                <img id="image-preview" 
+                                     src="<%= (review && review.image) ? review.image : 'https://via.placeholder.com/128' %>" 
+                                     alt="Image preview" 
+                                     class="h-32 w-32 object-cover rounded-md">
+                            </div>
+                            <div class="flex-grow">
+                                <input type="hidden" id="image" value="<%= review ? review.image : '' %>">
+                                <label for="image-upload-input" class="btn btn-secondary cursor-pointer">
+                                    <span>Choose Image</span>
+                                </label>
+                                <input id="image-upload-input" type="file" class="sr-only">
+                                <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF, WEBP up to 5MB.</p>
+                                <div id="upload-status" class="mt-2 text-sm"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pros & Cons Section -->
+                <div class="space-y-6 border-t border-gray-200 pt-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="pros_en" class="block text-sm font-medium text-gray-700">Pros (English, one per line)</label>
+                            <textarea id="pros_en" rows="4" class="form-input"><%= review ? review.pros.en.join('\n') : '' %></textarea>
+                        </div>
+                        <div>
+                            <label for="pros_hi" class="block text-sm font-medium text-gray-700">Pros (Hindi, one per line)</label>
+                            <textarea id="pros_hi" rows="4" class="form-input"><%= review ? review.pros.hi.join('\n') : '' %></textarea>
+                        </div>
+                        <div>
+                            <label for="cons_en" class="block text-sm font-medium text-gray-700">Cons (English, one per line)</label>
+                            <textarea id="cons_en" rows="4" class="form-input"><%= review ? review.cons.en.join('\n') : '' %></textarea>
+                        </div>
+                        <div>
+                            <label for="cons_hi" class="block text-sm font-medium text-gray-700">Cons (Hindi, one per line)</label>
+                            <textarea id="cons_hi" rows="4" class="form-input"><%= review ? review.cons.hi.join('\n') : '' %></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Footer -->
+            <div class="bg-gray-50 p-4 flex justify-end rounded-b-lg">
+                <button type="submit" id="submitButton" class="btn btn-primary">
+                    <%= review ? 'Update Review' : 'Create Review' %>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EasyMDE JavaScript library -->
+<script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+
+<script>
+    // --- Image Upload Logic ---
+    const imageUploadInput = document.getElementById('image-upload-input');
+    const imagePreview = document.getElementById('image-preview');
+    const imagePathInput = document.getElementById('image');
+    const uploadStatus = document.getElementById('upload-status');
+
+    imageUploadInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => { imagePreview.src = e.target.result; };
+        reader.readAsDataURL(file);
+        
+        const formData = new FormData();
+        formData.append('image', file);
+        uploadStatus.textContent = 'Uploading...';
+        uploadStatus.className = 'mt-2 text-sm text-gray-600';
+
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch('/api/admin/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Upload failed');
+
+            imagePathInput.value = result.filePath;
+            imagePreview.src = result.filePath;
+            uploadStatus.textContent = 'Upload successful!';
+            uploadStatus.className = 'mt-2 text-sm text-green-600 font-medium';
+        } catch (error) {
+            uploadStatus.textContent = `Error: ${error.message}`;
+            uploadStatus.className = 'mt-2 text-sm text-red-600 font-medium';
+        }
+    });
+
+    // --- Markdown Editor & Form Submission Logic (unchanged) ---
+    let easyMDE_en, easyMDE_hi;
+    document.addEventListener('DOMContentLoaded', function() {
+        const commonConfig = {
+            spellChecker: false,
+            status: ["lines", "words"],
+        };
+        easyMDE_en = new EasyMDE({ ...commonConfig, element: document.getElementById('body_en'), placeholder: "Enter review content in English..." });
+        easyMDE_hi = new EasyMDE({ ...commonConfig, element: document.getElementById('body_hi'), placeholder: "Enter review content in Hindi..." });
+
+        const slugInput = document.getElementById('slug');
+        const titleInput = document.getElementById('title_en');
+        if (!slugInput.value) {
+            titleInput.addEventListener('keyup', () => {
+                slugInput.value = titleInput.value.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-');
+            });
+        }
+    });
+
+    const getArrayFromTextarea = (id) => document.getElementById(id).value.split('\n').map(item => item.trim()).filter(Boolean);
+    const form = document.getElementById('reviewForm');
+    const submitButton = document.getElementById('submitButton');
+    const method = '<%= review ? "PUT" : "POST" %>';
+    const apiEndpoint = '<%= apiEndpoint %>';
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!imagePathInput.value) {
+            showToast('Please upload an image for the review.', 'error');
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
+
+        const formData = {
+            slug: document.getElementById('slug').value,
+            title: { en: document.getElementById('title_en').value, hi: document.getElementById('title_hi').value },
+            excerpt: { en: easyMDE_en.value().substring(0, 150), hi: easyMDE_hi.value().substring(0, 150) },
+            body: { en: easyMDE_en.value(), hi: easyMDE_hi.value() },
+            gameName: document.getElementById('gameName').value,
+            developer: document.getElementById('developer').value,
+            rating: parseFloat(document.getElementById('rating').value),
+            image: imagePathInput.value,
+            pros: { en: getArrayFromTextarea('pros_en'), hi: getArrayFromTextarea('pros_hi') },
+            cons: { en: getArrayFromTextarea('cons_en'), hi: getArrayFromTextarea('cons_hi') },
+        };
+        
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch(apiEndpoint, {
+                method: method,
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'An error occurred.');
+            
+            showToast('Review saved successfully!', 'success');
+
+            setTimeout(() => {
+                window.location.href = '<%= adminBase %>/reviews';
+            }, 1000);
+
+        } catch (error) {
+            showToast(error.message, 'error');
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<%= review ? "Update Review" : "Create Review" %>';
+        }
+    });
+</script>
+
+<%- include('partials/_footer') %>

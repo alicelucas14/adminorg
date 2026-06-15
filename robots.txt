@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /api/
+Disallow: /frontend-api/
+Disallow: /admin/
+
+Sitemap: https://starsuu7.org/sitemap.xml
+Host: https://starsuu7.org

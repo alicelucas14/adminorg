@@ -1,0 +1,40 @@
+<!-- backend/views/partials/_footer.ejs -->
+    </main>
+</div><!-- This closes the main content flex container -->
+</div><!-- This closes the root flex container -->
+
+<!-- NEW: Toastify JS Library -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
+<!-- NEW: Global Admin Scripts -->
+<script>
+    /**
+     * Displays a toast notification.
+     * @param {string} message - The message to display.
+     * @param {string} type - 'success' or 'error'.
+     */
+    function showToast(message, type = 'success') {
+        Toastify({
+            text: message,
+            duration: 3000,
+            close: true,
+            gravity: "top", // `top` or `bottom`
+            position: "right", // `left`, `center` or `right`
+            stopOnFocus: true, // Prevents dismissing of toast on hover
+            className: type === 'success' ? 'toast-success' : 'toast-error',
+        }).showToast();
+    }
+
+    // --- Logout Button Logic (moved here for better organization) ---
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', () => {
+            // Clear the auth cookie
+            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;';
+            // Redirect to the login page
+            window.location.href = '<%= adminBase %>';
+        });
+    }
+</script>
+</body>
+</html>
