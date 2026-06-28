@@ -133,11 +133,40 @@ const settingSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 
+/**
+ * =============================================================================
+ *  PAGE SCHEMA (NEW for Custom Pages)
+ * =============================================================================
+ */
+const pageSchema = new mongoose.Schema({
+    slug: { type: String, required: true, unique: true, trim: true, lowercase: true },
+    title: { type: localizedStringSchema, required: true },
+    body: { type: localizedStringSchema, required: true },
+
+    // --- SEO FIELDS ---
+    metaTitle: { type: localizedStringSchema, required: false },
+    metaDescription: { type: localizedStringSchema, required: false },
+    focusKeyword: { type: String, trim: true, default: '' },
+    canonicalUrl: { type: String, trim: true, default: '' },
+    robotsIndex: { type: Boolean, default: true },
+    robotsFollow: { type: Boolean, default: true },
+    openGraphTitle: { type: localizedStringSchema, required: false },
+    openGraphDescription: { type: localizedStringSchema, required: false },
+    openGraphImage: { type: String, trim: true, default: '' },
+    twitterTitle: { type: localizedStringSchema, required: false },
+    twitterDescription: { type: localizedStringSchema, required: false },
+    // --- END SEO FIELDS ---
+
+    isPublished: { type: Boolean, default: true, index: true }
+}, { timestamps: true });
+
+
 // Export all models
 const Game = mongoose.models.Game || mongoose.model('Game', gameSchema);
 const BlogPost = mongoose.models.BlogPost || mongoose.model('BlogPost', blogPostSchema);
 const Review = mongoose.models.Review || mongoose.model('Review', reviewSchema);
 const Promotion = mongoose.models.Promotion || mongoose.model('Promotion', promotionSchema);
 const Setting = mongoose.models.Setting || mongoose.model('Setting', settingSchema);
+const Page = mongoose.models.Page || mongoose.model('Page', pageSchema);
 
-module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment };
+module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment, Page };

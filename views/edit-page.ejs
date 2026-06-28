@@ -1,0 +1,463 @@
+<!-- backend/views/edit-page.ejs -->
+<%- include('partials/_header') %>
+<!-- EasyMDE CSS -->
+<link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
+<!-- Custom styles to override EasyMDE defaults -->
+<style>
+    .editor-toolbar { border-top-left-radius: 0.375rem; border-top-right-radius: 0.375rem; border-color: #cbd5e1; }
+    .CodeMirror { border-bottom-left-radius: 0.375rem; border-bottom-right-radius: 0.375rem; border-color: #cbd5e1; }
+    .cm-s-easymde .CodeMirror-cursor { border-left: 1px solid #1e293b; }
+</style>
+<%- include('partials/_sidebar') %>
+
+<div class="max-w-4xl mx-auto">
+    <!-- Back Navigation Link -->
+    <div class="mb-4">
+        <a href="<%= adminBase %>/pages" class="inline-flex items-center text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
+            <i class="ri-arrow-left-s-line mr-1 text-lg"></i>
+            Back to Custom Pages
+        </a>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-800"><%= title %></h2>
+            <p class="mt-1 text-sm text-gray-500">Create and edit webpage content with localized English & Hindi inputs and SEO configurations.</p>
+        </div>
+
+        <form id="pageForm">
+            <div class="p-6 space-y-6">
+                <!-- Slug -->
+                <div>
+                    <label for="slug" class="block text-sm font-medium text-gray-700">Slug (URL Identifier)</label>
+                    <input type="text" id="slug" value="<%= pageData ? pageData.slug : '' %>" required <%= pageData ? 'readonly' : '' %>
+                           class="form-input <%= pageData ? 'bg-gray-100 cursor-not-allowed' : '' %>" placeholder="e.g., about-us">
+                </div>
+
+                <!-- English & Hindi Titles -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div>
+                        <label for="title_en" class="block text-sm font-medium text-gray-700">Title (English)</label>
+                        <input type="text" id="title_en" value="<%= pageData ? pageData.title.en : '' %>" required class="form-input">
+                    </div>
+                    <div>
+                        <label for="title_hi" class="block text-sm font-medium text-gray-700">Title (Hindi)</label>
+                        <input type="text" id="title_hi" value="<%= pageData ? pageData.title.hi : '' %>" required class="form-input">
+                    </div>
+                </div>
+
+                <!-- Body Content (English) with Markdown Editor -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label for="body_en" class="block text-sm font-medium text-gray-700">Body Content (English)</label>
+                        <button type="button" id="generate-en-btn" class="btn btn-secondary py-1 px-2 text-xs flex items-center">
+                            <i class="ri-robot-2-line mr-1"></i> Generate with AI
+                        </button>
+                    </div>
+                    <textarea id="body_en"><%= pageData ? pageData.body.en : '' %></textarea>
+                </div>
+                
+                <!-- Body Content (Hindi) with Markdown Editor -->
+                <div>
+                     <div class="flex justify-between items-center mb-1">
+                        <label for="body_hi" class="block text-sm font-medium text-gray-700">Body Content (Hindi)</label>
+                        <button type="button" id="generate-hi-btn" class="btn btn-secondary py-1 px-2 text-xs flex items-center">
+                           <i class="ri-robot-2-line mr-1"></i> Generate with AI
+                        </button>
+                    </div>
+                    <textarea id="body_hi"><%= pageData ? pageData.body.hi : '' %></textarea>
+                </div>
+
+                <!-- SEO Settings Section -->
+                <div class="space-y-6 border-t border-gray-200 pt-6">
+                    <h3 class="text-lg font-semibold text-gray-800">SEO Settings</h3>
+
+                    <!-- Meta Titles (English & Hindi) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="meta_title_en" class="block text-sm font-medium text-gray-700">Meta Title (English)</label>
+                            <input type="text" id="meta_title_en" value="<%= pageData ? (pageData.metaTitle?.en || '') : '' %>" class="form-input" placeholder="Page Title | Brand Name">
+                        </div>
+                        <div>
+                            <label for="meta_title_hi" class="block text-sm font-medium text-gray-700">Meta Title (Hindi)</label>
+                            <input type="text" id="meta_title_hi" value="<%= pageData ? (pageData.metaTitle?.hi || '') : '' %>" class="form-input">
+                        </div>
+                    </div>
+
+                    <!-- Meta Descriptions (English & Hindi) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="meta_desc_en" class="block text-sm font-medium text-gray-700">Meta Description (English)</label>
+                            <textarea id="meta_desc_en" rows="3" class="form-input" placeholder="Page summary (150-160 characters)..."><%= pageData ? (pageData.metaDescription?.en || '') : '' %></textarea>
+                        </div>
+                        <div>
+                            <label for="meta_desc_hi" class="block text-sm font-medium text-gray-700">Meta Description (Hindi)</label>
+                            <textarea id="meta_desc_hi" rows="3" class="form-input"><%= pageData ? (pageData.metaDescription?.hi || '') : '' %></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Focus Keyword -->
+                    <div>
+                        <label for="focusKeyword" class="block text-sm font-medium text-gray-700">
+                            Focus Keyword <span class="text-gray-500 text-xs ml-1">(primary topic)</span>
+                        </label>
+                        <input type="text" id="focusKeyword" value="<%= pageData ? pageData.focusKeyword : '' %>"
+                               class="form-input" placeholder="e.g., Starsuu7 Responsible Gaming">
+                    </div>
+
+                    <!-- Canonical URL -->
+                    <div>
+                        <label for="canonicalUrl" class="block text-sm font-medium text-gray-700">
+                            Canonical URL <span class="text-gray-500 text-xs ml-1">(optional)</span>
+                        </label>
+                        <input type="url" id="canonicalUrl" value="<%= pageData ? pageData.canonicalUrl : '' %>"
+                               class="form-input" placeholder="https://example.com/original-page">
+                    </div>
+
+                    <!-- Robots Meta Tags -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="robotsIndex"
+                                   <%= pageData && !pageData.robotsIndex ? '' : 'checked' %>
+                                   class="form-checkbox rounded">
+                            <label for="robotsIndex" class="ml-2 text-sm text-gray-700">
+                                Allow indexing (index)
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="robotsFollow"
+                                   <%= pageData && !pageData.robotsFollow ? '' : 'checked' %>
+                                   class="form-checkbox rounded">
+                            <label for="robotsFollow" class="ml-2 text-sm text-gray-700">
+                                Allow following links (follow)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Open Graph & Social Preview Section -->
+                <div class="space-y-6 border-t border-gray-200 pt-6">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-800">Social Media Preview</h3>
+                        <button type="button" id="preview-toggle" class="btn btn-secondary btn-sm">
+                            <i class="ri-eye-line mr-1"></i> Preview
+                        </button>
+                    </div>
+
+                    <!-- OG Title -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="og_title_en" class="block text-sm font-medium text-gray-700">
+                                OG Title (English)
+                            </label>
+                            <input type="text" id="og_title_en" value="<%= pageData ? (pageData.openGraphTitle?.en || '') : '' %>"
+                                   class="form-input" placeholder="Leave blank to use page title">
+                        </div>
+                        <div>
+                            <label for="og_title_hi" class="block text-sm font-medium text-gray-700">
+                                OG Title (Hindi)
+                            </label>
+                            <input type="text" id="og_title_hi" value="<%= pageData ? (pageData.openGraphTitle?.hi || '') : '' %>"
+                                   class="form-input">
+                        </div>
+                    </div>
+
+                    <!-- OG Description -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="og_desc_en" class="block text-sm font-medium text-gray-700">
+                                OG Description (English)
+                            </label>
+                            <textarea id="og_desc_en" rows="2" class="form-input"
+                                      placeholder="Leave blank to use meta description"><%= pageData ? (pageData.openGraphDescription?.en || '') : '' %></textarea>
+                        </div>
+                        <div>
+                            <label for="og_desc_hi" class="block text-sm font-medium text-gray-700">
+                                OG Description (Hindi)
+                            </label>
+                            <textarea id="og_desc_hi" rows="2" class="form-input"><%= pageData ? (pageData.openGraphDescription?.hi || '') : '' %></textarea>
+                        </div>
+                    </div>
+
+                    <!-- OG Image URL (Direct link) -->
+                    <div>
+                        <label for="og_image" class="block text-sm font-medium text-gray-700">
+                            OG Image URL <span class="text-gray-500 text-xs ml-1">(Optional social sharing image URL)</span>
+                        </label>
+                        <input type="text" id="og_image" value="<%= pageData ? pageData.openGraphImage : '' %>"
+                               class="form-input" placeholder="https://example.com/social-share.jpg">
+                    </div>
+
+                    <!-- Twitter Card Section -->
+                    <div class="space-y-4 border-t border-gray-200 pt-4">
+                        <h4 class="text-sm font-medium text-gray-700">Twitter Card</h4>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="tw_title_en" class="block text-sm font-medium text-gray-700">
+                                    Twitter Title (English)
+                                </label>
+                                <input type="text" id="tw_title_en" value="<%= pageData ? (pageData.twitterTitle?.en || '') : '' %>"
+                                       class="form-input" placeholder="Leave blank to use OG title">
+                            </div>
+                            <div>
+                                <label for="tw_title_hi" class="block text-sm font-medium text-gray-700">
+                                    Twitter Title (Hindi)
+                                </label>
+                                <input type="text" id="tw_title_hi" value="<%= pageData ? (pageData.twitterTitle?.hi || '') : '' %>"
+                                       class="form-input">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="tw_desc_en" class="block text-sm font-medium text-gray-700">
+                                    Twitter Description (English)
+                                </label>
+                                <textarea id="tw_desc_en" rows="2" class="form-input"
+                                          placeholder="Leave blank to use OG description"><%= pageData ? (pageData.twitterDescription?.en || '') : '' %></textarea>
+                            </div>
+                            <div>
+                                <label for="tw_desc_hi" class="block text-sm font-medium text-gray-700">
+                                    Twitter Description (Hindi)
+                                </label>
+                                <textarea id="tw_desc_hi" rows="2" class="form-input"><%= pageData ? (pageData.twitterDescription?.hi || '') : '' %></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Footer -->
+            <div class="bg-gray-50 p-4 flex justify-end rounded-b-lg">
+                <button type="submit" id="submitButton" class="btn btn-primary">
+                    <%= pageData ? 'Update Page' : 'Create Page' %>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- SEO Preview Modal -->
+<div id="preview-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto">
+        <div class="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+            <h3 class="text-lg font-semibold">SEO & Social Preview</h3>
+            <button type="button" id="close-preview" class="text-gray-500 hover:text-gray-700">
+                <i class="ri-close-line text-xl"></i>
+            </button>
+        </div>
+
+        <div class="p-6 space-y-8">
+            <!-- Google Search Preview -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 mb-3">Google Search Result</h4>
+                <div class="border border-gray-300 rounded p-4 bg-gray-50 text-sm">
+                    <div class="text-blue-600 hover:underline" id="preview-url">
+                        https://uu7stars.com/your-slug/
+                    </div>
+                    <div class="text-gray-800 font-semibold text-base mt-1" id="preview-title">
+                        Your Page Title
+                    </div>
+                    <div class="text-gray-600 text-sm mt-1" id="preview-description">
+                        Your meta description appears here...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Facebook/LinkedIn Preview -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 mb-3">Facebook & LinkedIn Preview</h4>
+                <div class="border border-gray-300 rounded overflow-hidden bg-gray-50">
+                    <img id="preview-og-image" src="https://via.placeholder.com/500x261" alt="OG Image"
+                         class="w-full h-auto max-h-48 object-cover">
+                    <div class="p-4">
+                        <div class="text-blue-600 text-xs font-semibold" id="preview-og-url">
+                            uu7stars.com
+                        </div>
+                        <div class="text-gray-800 font-semibold text-sm mt-1" id="preview-og-title">
+                            OG Title
+                        </div>
+                        <div class="text-gray-600 text-sm mt-1" id="preview-og-desc">
+                            OG description...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- EasyMDE JavaScript library -->
+<script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+
+<script>
+    // --- Markdown Editor Setup ---
+    let easyMDE_en, easyMDE_hi;
+    document.addEventListener('DOMContentLoaded', function() {
+        const commonConfig = { spellChecker: false, renderingConfig: { singleLineBreaks: false, }, status: ["lines", "words"] };
+        easyMDE_en = new EasyMDE({ ...commonConfig, element: document.getElementById('body_en'), placeholder: "Enter page content in English..." });
+        easyMDE_hi = new EasyMDE({ ...commonConfig, element: document.getElementById('body_hi'), placeholder: "Enter page content in Hindi..." });
+        const slugInput = document.getElementById('slug');
+        const titleInput = document.getElementById('title_en');
+        if (!slugInput.value) {
+            titleInput.addEventListener('keyup', () => {
+                slugInput.value = titleInput.value.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-');
+            });
+        }
+    });
+
+    // --- AI Content Generation Logic ---
+    const generateEnBtn = document.getElementById('generate-en-btn');
+    const generateHiBtn = document.getElementById('generate-hi-btn');
+    const titleInputEn = document.getElementById('title_en');
+
+    async function handleAiGeneration(lang, button) {
+        let topic = titleInputEn.value.trim();
+        if (!topic) {
+            topic = prompt('Please enter a topic/purpose for this page:');
+            if (!topic) {
+                showToast('A topic is required to generate content.', 'error');
+                return;
+            }
+        } else {
+            const confirmedTopic = prompt('Use this topic to generate content?', topic);
+            if (!confirmedTopic) return;
+            topic = confirmedTopic;
+        }
+
+        button.disabled = true;
+        button.innerHTML = '<span class="animate-pulse">Generating...</span>';
+
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch('/api/admin/pages/generate-content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ topic, lang })
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'AI generation failed.');
+
+            if (lang === 'en') {
+                easyMDE_en.value(result.body);
+            } else {
+                easyMDE_hi.value(result.body);
+            }
+            showToast('Page content generated successfully!', 'success');
+
+        } catch (error) {
+            showToast(`Error: ${error.message}`, 'error');
+        } finally {
+            button.disabled = false;
+            button.innerHTML = '<i class="ri-robot-2-line mr-1"></i> Generate with AI';
+        }
+    }
+
+    if (generateEnBtn) generateEnBtn.addEventListener('click', () => handleAiGeneration('en', generateEnBtn));
+    if (generateHiBtn) generateHiBtn.addEventListener('click', () => handleAiGeneration('hi', generateHiBtn));
+
+    // --- SEO Preview Modal Logic ---
+    const previewToggle = document.getElementById('preview-toggle');
+    const previewModal = document.getElementById('preview-modal');
+    const closePreview = document.getElementById('close-preview');
+
+    previewToggle?.addEventListener('click', () => {
+        updatePreview();
+        previewModal.classList.remove('hidden');
+    });
+
+    closePreview?.addEventListener('click', () => {
+        previewModal.classList.add('hidden');
+    });
+
+    previewModal?.addEventListener('click', (e) => {
+        if (e.target === previewModal) previewModal.classList.add('hidden');
+    });
+
+    function updatePreview() {
+        const titleEn = document.getElementById('title_en').value || 'Your Title';
+        const slug = document.getElementById('slug').value || 'your-slug';
+        const ogImage = document.getElementById('og_image').value;
+
+        // Google Preview
+        document.getElementById('preview-url').textContent = `https://uu7stars.com/${slug}/`;
+        document.getElementById('preview-title').textContent = document.getElementById('meta_title_en').value || titleEn;
+        document.getElementById('preview-description').textContent = document.getElementById('meta_desc_en').value || 'Your page description appears here...';
+
+        // OG Preview
+        const ogTitle = document.getElementById('og_title_en').value || titleEn;
+        const ogDesc = document.getElementById('og_desc_en').value || document.getElementById('meta_desc_en').value || 'Social preview description...';
+        document.getElementById('preview-og-title').textContent = ogTitle;
+        document.getElementById('preview-og-desc').textContent = ogDesc;
+        document.getElementById('preview-og-image').src = ogImage || 'https://via.placeholder.com/500x261';
+    }
+
+    // --- Form Submission Logic ---
+    const form = document.getElementById('pageForm');
+    const submitButton = document.getElementById('submitButton');
+    const method = '<%= pageData ? "PUT" : "POST" %>';
+    const apiEndpoint = '<%= apiEndpoint %>';
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
+        const formData = {
+            slug: document.getElementById('slug').value,
+            title: { en: document.getElementById('title_en').value, hi: document.getElementById('title_hi').value },
+            body: { en: easyMDE_en.value(), hi: easyMDE_hi.value() },
+            isPublished: true,
+            // SEO Fields
+            metaTitle: {
+                en: document.getElementById('meta_title_en').value || '',
+                hi: document.getElementById('meta_title_hi').value || '',
+            },
+            metaDescription: {
+                en: document.getElementById('meta_desc_en').value || '',
+                hi: document.getElementById('meta_desc_hi').value || '',
+            },
+            focusKeyword: document.getElementById('focusKeyword').value || '',
+            canonicalUrl: document.getElementById('canonicalUrl').value || '',
+            robotsIndex: document.getElementById('robotsIndex').checked,
+            robotsFollow: document.getElementById('robotsFollow').checked,
+            openGraphTitle: {
+                en: document.getElementById('og_title_en').value || '',
+                hi: document.getElementById('og_title_hi').value || '',
+            },
+            openGraphDescription: {
+                en: document.getElementById('og_desc_en').value || '',
+                hi: document.getElementById('og_desc_hi').value || '',
+            },
+            openGraphImage: document.getElementById('og_image').value || '',
+            twitterTitle: {
+                en: document.getElementById('tw_title_en').value || '',
+                hi: document.getElementById('tw_title_hi').value || '',
+            },
+            twitterDescription: {
+                en: document.getElementById('tw_desc_en').value || '',
+                hi: document.getElementById('tw_desc_hi').value || '',
+            },
+        };
+
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch(apiEndpoint, {
+                method: method,
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(formData)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'An error occurred.');
+            showToast('Page saved successfully!', 'success');
+            setTimeout(() => { window.location.href = '<%= adminBase %>/pages'; }, 1000);
+        } catch (error) {
+            showToast(error.message, 'error');
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<%= pageData ? "Update Page" : "Create Page" %>';
+        }
+    });
+</script>
+<%- include('partials/_footer') %>

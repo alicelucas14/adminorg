@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Promotion, Setting, Game, BlogPost, Review } = require('../models');
+const { Promotion, Setting, Game, BlogPost, Review, Page } = require('../models');
 const { requireApiKey } = require('../middleware/apiKeyMiddleware');
 
 // Protect all routes in this file with the API Key middleware.
@@ -197,6 +197,49 @@ router.get('/reviews/:slug', async (req, res) => {
         res.json(review);
     } catch (err) {
         res.status(500).json({ message: 'Server error while fetching review.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/pages
+ * @desc    Get all published custom pages.
+ * @access  Private (API Key)
+ */
+router.get('/pages', async (req, res) => {
+    try {
+        const lang = req.query.lang || 'en';
+        const pagesFromDb = await Page.find({ isPublished: true }).sort({ createdAt: -1 });
+        const formattedPages = pagesFromDb.map(p => ({
+            _id: p._id,
+            slug: p.slug,
+            title: p.title ? p.title[lang === 'hi' ? 'hi' : 'en'] : '',
+            updatedAt: p.updatedAt
+        }));
+        res.json(formattedPages);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while fetching pages.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/pages/:slug
+ * @desc    Get a single custom page by its slug.
+ * @access  Private (API Key)
+ */
+router.get('/pages/:slug', async (req, res) => {
+    try {
+        const lang = req.query.lang || 'en';
+        const page = await Page.findOne({ slug: req.params.slug, isPublished: true })
+            .select({
+                [`title.${lang === 'en' ? 'hi' : 'en'}`]: 0,
+                [`body.${lang === 'en' ? 'hi' : 'en'}`]: 0,
+            });
+        if (!page) {
+            return res.status(404).json({ message: 'Page not found.' });
+        }
+        res.json(page);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while fetching page.' });
     }
 });
 
