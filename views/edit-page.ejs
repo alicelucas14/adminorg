@@ -4,16 +4,9 @@
 <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
 <!-- Custom styles to override EasyMDE defaults -->
 <style>
-    .editor-toolbar { border-top-left-radius: 0.375rem; border-top-right-radius: 0.375rem; border-color: #cbd5e1; }
+    .editor-toolbar { border-top-left-radius: 0.375rem; border-top-right-radius: 0.375rem; border-color: #cbd5e1; display: flex; align-items: center; flex-wrap: wrap; }
     .CodeMirror { border-bottom-left-radius: 0.375rem; border-bottom-right-radius: 0.375rem; border-color: #cbd5e1; }
     .cm-s-easymde .CodeMirror-cursor { border-left: 1px solid #1e293b; }
-    
-    /* Display numbers next to heading icons in EasyMDE toolbar */
-    .editor-toolbar button.heading-1:after { content: "1"; font-size: 9px; font-weight: bold; vertical-align: super; margin-left: -2px; }
-    .editor-toolbar button.heading-2:after { content: "2"; font-size: 9px; font-weight: bold; vertical-align: super; margin-left: -2px; }
-    .editor-toolbar button.heading-3:after { content: "3"; font-size: 9px; font-weight: bold; vertical-align: super; margin-left: -2px; }
-    .editor-toolbar button.heading-4:after { content: "4"; font-size: 9px; font-weight: bold; vertical-align: super; margin-left: -2px; }
-    .editor-toolbar button.heading-5:after { content: "5"; font-size: 9px; font-weight: bold; vertical-align: super; margin-left: -2px; }
 </style>
 <%- include('partials/_sidebar') %>
 
@@ -328,34 +321,10 @@
             toolbar: [
                 "bold", "italic", "strikethrough", "|",
                 {
-                    name: "heading-1",
-                    action: EasyMDE.toggleHeading1,
-                    className: "fa fa-header heading-1",
-                    title: "Heading 1",
-                },
-                {
-                    name: "heading-2",
-                    action: EasyMDE.toggleHeading2,
-                    className: "fa fa-header heading-2",
-                    title: "Heading 2",
-                },
-                {
-                    name: "heading-3",
-                    action: EasyMDE.toggleHeading3,
-                    className: "fa fa-header heading-3",
-                    title: "Heading 3",
-                },
-                {
-                    name: "heading-4",
-                    action: EasyMDE.toggleHeading4,
-                    className: "fa fa-header heading-4",
-                    title: "Heading 4",
-                },
-                {
-                    name: "heading-5",
-                    action: EasyMDE.toggleHeading5,
-                    className: "fa fa-header heading-5",
-                    title: "Heading 5",
+                    name: "heading-select",
+                    className: "fa fa-header heading-select-placeholder",
+                    title: "Headings",
+                    action: () => {}
                 },
                 "|",
                 "quote", "unordered-list", "ordered-list", "|",
@@ -384,6 +353,11 @@
         };
         easyMDE_en = new EasyMDE({ ...commonConfig, element: document.getElementById('body_en'), placeholder: "Enter page content in English..." });
         easyMDE_hi = new EasyMDE({ ...commonConfig, element: document.getElementById('body_hi'), placeholder: "Enter page content in Hindi..." });
+        
+        // Setup heading dropdowns in the DOM
+        setupHeadingDropdown(easyMDE_en);
+        setupHeadingDropdown(easyMDE_hi);
+
         const slugInput = document.getElementById('slug');
         const titleInput = document.getElementById('title_en');
         if (!slugInput.value) {
@@ -392,6 +366,64 @@
             });
         }
     });
+
+    // --- Helper to convert Heading placeholder button into a styled select dropdown ---
+    function setupHeadingDropdown(editor) {
+        const wrapper = editor.codemirror.getWrapperElement().parentNode;
+        const toolbar = wrapper.querySelector('.editor-toolbar');
+        if (!toolbar) return;
+
+        const placeholder = toolbar.querySelector('.heading-select-placeholder');
+        if (!placeholder) return;
+
+        const select = document.createElement('select');
+        select.className = 'editor-heading-select';
+        select.style.margin = '0 6px';
+        select.style.padding = '2px 4px';
+        select.style.fontSize = '12px';
+        select.style.fontWeight = '600';
+        select.style.border = '1px solid #cbd5e1';
+        select.style.borderRadius = '0.375rem';
+        select.style.height = '28px';
+        select.style.color = '#1e293b';
+        select.style.backgroundColor = '#ffffff';
+        select.style.cursor = 'pointer';
+        select.style.outline = 'none';
+
+        const options = [
+            { text: 'Heading...', value: '' },
+            { text: 'Heading 1', value: '1' },
+            { text: 'Heading 2', value: '2' },
+            { text: 'Heading 3', value: '3' },
+            { text: 'Heading 4', value: '4' },
+            { text: 'Heading 5', value: '5' }
+        ];
+
+        options.forEach(opt => {
+            const el = document.createElement('option');
+            el.text = opt.text;
+            el.value = opt.value;
+            select.appendChild(el);
+        });
+
+        select.addEventListener('change', function() {
+            const val = this.value;
+            if (!val) return;
+
+            const cm = editor.codemirror;
+            cm.focus();
+
+            if (val === '1') EasyMDE.toggleHeading1(editor);
+            else if (val === '2') EasyMDE.toggleHeading2(editor);
+            else if (val === '3') EasyMDE.toggleHeading3(editor);
+            else if (val === '4') EasyMDE.toggleHeading4(editor);
+            else if (val === '5') EasyMDE.toggleHeading5(editor);
+
+            this.value = '';
+        });
+
+        placeholder.parentNode.replaceChild(select, placeholder);
+    }
 
     // --- AI Content Generation Logic ---
     const generateEnBtn = document.getElementById('generate-en-btn');
