@@ -116,43 +116,6 @@
                      </div>
                 </div>
 
-                <!-- Homepage Popup Banner Section -->
-                <div class="p-6 space-y-4">
-                     <h3 class="text-lg font-semibold text-gray-800">Homepage Popup Banner</h3>
-                     
-                     <div class="flex items-center mb-4">
-                         <input type="checkbox" id="showPopupBanner" <%= settings && settings.showPopupBanner ? 'checked' : '' %> class="form-checkbox rounded h-5 w-5 text-primary-600">
-                         <label for="showPopupBanner" class="ml-2 text-sm font-medium text-gray-700">Enable Popup Banner on Site Load</label>
-                     </div>
-
-                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Banner Image Upload -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Banner Image</label>
-                            <div class="mt-2 flex items-center space-x-6">
-                                <div class="shrink-0">
-                                    <img id="popup-banner-preview" src="<%= (settings && settings.popupBannerImageUrl) ? settings.popupBannerImageUrl : 'https://via.placeholder.com/300x150?text=No+Banner' %>" alt="Banner preview" class="h-24 w-48 object-cover rounded-md border">
-                                </div>
-                                <div class="flex-grow">
-                                    <input type="hidden" id="popupBannerImageUrl" value="<%= settings ? settings.popupBannerImageUrl : '' %>">
-                                    <label for="popup-banner-upload-input" class="btn btn-secondary cursor-pointer">
-                                        <span>Choose Image</span>
-                                    </label>
-                                    <input id="popup-banner-upload-input" type="file" class="sr-only">
-                                    <p class="mt-2 text-xs text-gray-500">PNG, JPG, WEBP up to 5MB.</p>
-                                    <div id="popup-banner-upload-status" class="mt-2 text-sm"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Banner Redirect Link -->
-                        <div>
-                            <label for="popupBannerLink" class="block text-sm font-medium text-gray-700">Banner Redirect Link (Optional)</label>
-                            <input type="url" id="popupBannerLink" value="<%= settings ? settings.popupBannerLink : '' %>" class="form-input" placeholder="https://example.com/promo-target">
-                            <p class="mt-1 text-xs text-gray-500">If provided, clicking the banner will open this link.</p>
-                        </div>
-                     </div>
-                </div>
             </div>
 
             <!-- Form Footer -->
@@ -222,15 +185,7 @@
         );
     });
 
-    const bannerUploadInput = document.getElementById('popup-banner-upload-input');
-    bannerUploadInput.addEventListener('change', (event) => {
-        handleImageUpload(
-            event,
-            document.getElementById('popup-banner-preview'),
-            document.getElementById('popupBannerImageUrl'),
-            document.getElementById('popup-banner-upload-status')
-        );
-    });
+
 
     // --- FORM SUBMISSION LOGIC (unchanged) ---
     const form = document.getElementById('settingsForm');
@@ -260,10 +215,7 @@
             googleSearchConsoleVerification: document.getElementById('googleSearchConsoleVerification').value,
             ahrefsVerification: document.getElementById('ahrefsVerification').value,
             customHeaderScripts: document.getElementById('customHeaderScripts').value,
-            customFooterScripts: document.getElementById('customFooterScripts').value,
-            showPopupBanner: document.getElementById('showPopupBanner').checked,
-            popupBannerImageUrl: document.getElementById('popupBannerImageUrl').value,
-            popupBannerLink: document.getElementById('popupBannerLink').value
+            customFooterScripts: document.getElementById('customFooterScripts').value
         };
         
         try {

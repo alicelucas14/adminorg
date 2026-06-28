@@ -1,0 +1,186 @@
+<!-- backend/views/edit-popup-banner.ejs -->
+<%- include('partials/_header') %>
+<%- include('partials/_sidebar') %>
+
+<div class="max-w-4xl mx-auto">
+    <!-- Back Navigation Link -->
+    <div class="mb-4">
+        <a href="<%= adminBase %>/popup-banners" class="inline-flex items-center text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
+            <i class="ri-arrow-left-s-line mr-1 text-lg"></i>
+            Back to Popup Banners
+        </a>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card">
+        <div class="p-6 border-b border-gray-200">
+             <h2 class="text-2xl font-bold text-gray-800"><%= title %></h2>
+             <p class="mt-1 text-sm text-gray-500">Add or edit popup banners for the frontend slider.</p>
+        </div>
+       
+        <form id="bannerForm">
+            <div class="p-6 space-y-6">
+                <!-- Name/Title (English & Hindi) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="title_en" class="block text-sm font-medium text-gray-700">Banner Name (English)</label>
+                        <input type="text" id="title_en" value="<%= banner ? banner.title.en : '' %>" required class="form-input" placeholder="e.g. Welcome Offer Banner">
+                    </div>
+                    <div>
+                        <label for="title_hi" class="block text-sm font-medium text-gray-700">Banner Name (Hindi)</label>
+                        <input type="text" id="title_hi" value="<%= banner ? banner.title.hi : '' %>" required class="form-input" placeholder="e.g. स्वागत प्रस्ताव बैनर">
+                    </div>
+                </div>
+
+                <!-- Banner Image Upload Component -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Banner Image</label>
+                    <div class="mt-2 flex items-center space-x-6">
+                        <div id="image-preview-container" class="shrink-0">
+                            <img id="image-preview" 
+                                 src="<%= (banner && banner.imageUrl) ? banner.imageUrl : 'https://via.placeholder.com/300x150?text=Upload+Banner' %>" 
+                                 alt="Image preview" 
+                                 class="h-28 w-56 object-cover rounded-md border bg-gray-50">
+                        </div>
+                        <div class="flex-grow">
+                            <input type="hidden" id="imageUrl" value="<%= banner ? banner.imageUrl : '' %>">
+                            <label for="image-upload-input" class="btn btn-secondary cursor-pointer">
+                                <span>Choose Image</span>
+                            </label>
+                            <input id="image-upload-input" type="file" class="sr-only">
+                            <p class="mt-2 text-xs text-gray-500">PNG, JPG, GIF, WEBP up to 5MB.</p>
+                            <div id="upload-status" class="mt-2 text-sm"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Redirect URL -->
+                <div>
+                    <label for="linkUrl" class="block text-sm font-medium text-gray-700">Redirect Link (Optional)</label>
+                    <input type="url" id="linkUrl" value="<%= banner ? banner.linkUrl : '' %>" class="form-input" placeholder="https://example.com/promotion-details">
+                    <p class="mt-1 text-xs text-gray-500">When users click the banner, they will be taken to this link.</p>
+                </div>
+
+                <!-- Flags & Order -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
+                    <div>
+                        <label for="displayOrder" class="block text-sm font-medium text-gray-700">Display Order</label>
+                        <input type="number" id="displayOrder" value="<%= banner ? banner.displayOrder : 0 %>" class="form-input" min="0" placeholder="0">
+                        <p class="mt-1 text-xs text-gray-500">Lower numbers display first in the slider.</p>
+                    </div>
+                    <div class="flex items-center pt-8">
+                        <input id="isActive" type="checkbox" <%= (banner && banner.isActive) || !banner ? 'checked' : '' %> class="form-checkbox h-5 w-5 text-primary-600 rounded">
+                        <label for="isActive" class="ml-2 block text-sm font-medium text-gray-900">Is Active? (Show in popup slider)</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Form Footer -->
+            <div class="bg-gray-50 p-4 flex justify-end rounded-b-lg">
+                <button type="submit" id="submitButton" class="btn btn-primary">
+                    <%= banner ? 'Update Banner' : 'Create Banner' %>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // --- Image Upload Logic ---
+    const imageUploadInput = document.getElementById('image-upload-input');
+    const imagePreview = document.getElementById('image-preview');
+    const imagePathInput = document.getElementById('imageUrl');
+    const uploadStatus = document.getElementById('upload-status');
+
+    imageUploadInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => { imagePreview.src = e.target.result; };
+        reader.readAsDataURL(file);
+        
+        const formData = new FormData();
+        formData.append('image', file);
+        uploadStatus.textContent = 'Uploading...';
+        uploadStatus.className = 'mt-2 text-sm text-gray-600';
+
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch('/api/admin/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Upload failed');
+            
+            imagePathInput.value = result.filePath;
+            imagePreview.src = result.filePath; 
+            uploadStatus.textContent = 'Upload successful!';
+            uploadStatus.className = 'mt-2 text-sm text-green-600 font-medium';
+        } catch (error) {
+            uploadStatus.textContent = `Error: ${error.message}`;
+            uploadStatus.className = 'mt-2 text-sm text-red-600 font-medium';
+        }
+    });
+
+    // --- Form Submission ---
+    const form = document.getElementById('bannerForm');
+    const submitButton = document.getElementById('submitButton');
+    const method = '<%= banner ? "PUT" : "POST" %>';
+    const apiEndpoint = '<%= apiEndpoint %>';
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!imagePathInput.value) {
+            showToast('Please upload a banner image.', 'error');
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
+
+        const formData = {
+            title: {
+                en: document.getElementById('title_en').value,
+                hi: document.getElementById('title_hi').value,
+            },
+            imageUrl: imagePathInput.value,
+            linkUrl: document.getElementById('linkUrl').value,
+            displayOrder: parseInt(document.getElementById('displayOrder').value) || 0,
+            isActive: document.getElementById('isActive').checked,
+        };
+        
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            
+            const response = await fetch(apiEndpoint, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'An error occurred.');
+
+            showToast('Popup banner saved successfully!', 'success');
+            
+            setTimeout(() => {
+                window.location.href = '<%= adminBase %>/popup-banners';
+            }, 1000);
+
+        } catch (error) {
+            showToast(error.message, 'error');
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<%= banner ? "Update Banner" : "Create Banner" %>';
+        }
+    });
+</script>
+
+<%- include('partials/_footer') %>

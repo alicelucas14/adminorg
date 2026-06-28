@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Game, BlogPost, Review, Promotion, Setting, Page } = require('../../models');
+const { Game, BlogPost, Review, Promotion, Setting, Page, PopupBanner } = require('../../models');
 
 const frontendUrl = process.env.FRONTEND_URL;
 
@@ -67,5 +67,18 @@ router.get('/settings', async (request, response) => {
 router.get('/pages', (req, res) => res.render('manage-content', { user: req.user, page: 'pages', title: 'Custom Pages', apiEndpoint: '/api/admin/pages', frontendUrl }));
 router.get('/pages/new', (req, res) => res.render('edit-page', { user: req.user, page: 'pages', title: 'Create New Page', pageData: null, apiEndpoint: '/api/admin/pages', frontendUrl }));
 router.get('/pages/edit/:id', async (req, res) => { try { const pageData = await Page.findById(req.params.id); if (!pageData) return res.status(404).send('Page not found'); res.render('edit-page', { user: req.user, page: 'pages', title: 'Edit Page', pageData, apiEndpoint: `/api/admin/pages/${pageData._id}`, frontendUrl }); } catch (e) { res.status(500).send('Server Error'); } });
+
+// --- POPUP BANNER UI ROUTES ---
+router.get('/popup-banners', (req, res) => res.render('manage-content', { user: req.user, page: 'popup-banners', title: 'Popup Banners', apiEndpoint: '/api/admin/popup-banners', frontendUrl }));
+router.get('/popup-banners/new', (req, res) => res.render('edit-popup-banner', { user: req.user, page: 'popup-banners', title: 'Create Popup Banner', banner: null, apiEndpoint: '/api/admin/popup-banners', frontendUrl }));
+router.get('/popup-banners/edit/:id', async (req, res) => {
+    try {
+        const banner = await PopupBanner.findById(req.params.id);
+        if (!banner) return res.status(404).send('Banner not found');
+        res.render('edit-popup-banner', { user: req.user, page: 'popup-banners', title: 'Edit Popup Banner', banner, apiEndpoint: `/api/admin/popup-banners/${banner._id}`, frontendUrl });
+    } catch (e) {
+        res.status(500).send('Server Error');
+    }
+});
 
 module.exports = router;

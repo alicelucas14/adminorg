@@ -23,6 +23,7 @@ const adminUploadRoutes = require('./routes/admin/upload');
 const adminCommentRoutes = require('./routes/admin/comments');
 const adminBlogCommentRoutes = require('./routes/admin/blog-comments'); // <-- IMPORT new admin route
 const adminPageRoutes = require('./routes/admin/pages');
+const adminPopupBannerRoutes = require('./routes/admin/popup-banners'); // <-- IMPORT popup-banners route
 const frontendApiRoutes = require('./routes/frontendApi');
 const commentFrontendRoutes = require('./routes/frontend/comments');
 const blogCommentFrontendRoutes = require('./routes/frontend/blog-comments'); // <-- IMPORT new frontend route
@@ -65,6 +66,7 @@ app.use('/api/admin/upload', adminUploadRoutes);
 app.use('/api/admin/comments', adminCommentRoutes);
 app.use('/api/admin/blog-comments', adminBlogCommentRoutes); // <-- REGISTER new admin route
 app.use('/api/admin/pages', adminPageRoutes);
+app.use('/api/admin/popup-banners', adminPopupBannerRoutes); // <-- REGISTER popup-banners admin API
 // Frontend APIs
 app.use('/frontend-api', frontendApiRoutes);
 app.use('/api/frontend/comments', commentFrontendRoutes);
