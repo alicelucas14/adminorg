@@ -139,7 +139,12 @@ const settingSchema = new mongoose.Schema({
     googleSearchConsoleVerification: { type: String, default: '' },
     ahrefsVerification: { type: String, default: '9b4a068be0accae70bb69802a875d1f5d6f987bb64e6f428005d97af07a52f2c' },
     customHeaderScripts: { type: String, default: '' },
-    customFooterScripts: { type: String, default: '' }
+    customFooterScripts: { type: String, default: '' },
+    
+    // --- Homepage Popup Banner ---
+    showPopupBanner: { type: Boolean, default: false },
+    popupBannerImageUrl: { type: String, default: '' },
+    popupBannerLink: { type: String, default: '' }
 }, { timestamps: true });
 
 
