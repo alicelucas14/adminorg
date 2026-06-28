@@ -26,7 +26,7 @@ SetEnv BACKEND_API_KEY 6LrCMp28fobMTO1vSktb1wOK29WyGi25
 SetEnv BACKEND_URL https://admin.starsuu7game.com
 SetEnv FRONTEND_URL https://uu7stars.com
 SetEnv JWT_SECRET e120d24e6fad5c4ca376bb670a66afcd722d871d52508313
-SetEnv MONGO_URI mongodb://starsuuorgdb:FhhCk5LDGMsSkZeA@3.27.33.104:27017/starsuuorgdb?authSource=starsuuorgdb
+SetEnv MONGO_URI mongodb://starsuuorgdb:FhhCk5LDGMsSkZeA@3.106.190.129:27017/starsuuorgdb?authSource=starsuuorgdb
 SetEnv OPENAI_API_KEY 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
 SetEnv AI_PROVIDER gemini
 SetEnv GOOGLE_GEMINI_API_KEY AIzaSyAjxE94atX0Mlf7i-Z3jqbocXGmfJVNm9w
