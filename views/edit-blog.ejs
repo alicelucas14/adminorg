@@ -103,6 +103,137 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- SEO Settings Section -->
+                <div class="space-y-6 border-t border-gray-200 pt-6">
+                    <h3 class="text-lg font-semibold text-gray-800">SEO Settings</h3>
+
+                    <!-- Focus Keyword -->
+                    <div>
+                        <label for="focusKeyword" class="block text-sm font-medium text-gray-700">
+                            Focus Keyword <span class="text-gray-500 text-xs ml-1">(primary topic)</span>
+                        </label>
+                        <input type="text" id="focusKeyword" value="<%= post ? post.focusKeyword : '' %>"
+                               class="form-input" placeholder="e.g., Teen Patti tips">
+                    </div>
+
+                    <!-- Canonical URL -->
+                    <div>
+                        <label for="canonicalUrl" class="block text-sm font-medium text-gray-700">
+                            Canonical URL <span class="text-gray-500 text-xs ml-1">(optional)</span>
+                        </label>
+                        <input type="url" id="canonicalUrl" value="<%= post ? post.canonicalUrl : '' %>"
+                               class="form-input" placeholder="https://example.com/original-article">
+                        <p class="mt-1 text-xs text-gray-500">Use if republishing from another URL</p>
+                    </div>
+
+                    <!-- Robots Meta Tags -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="robotsIndex"
+                                   <%= post && !post.robotsIndex ? '' : 'checked' %>
+                                   class="form-checkbox rounded">
+                            <label for="robotsIndex" class="ml-2 text-sm text-gray-700">
+                                Allow indexing (index)
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="robotsFollow"
+                                   <%= post && !post.robotsFollow ? '' : 'checked' %>
+                                   class="form-checkbox rounded">
+                            <label for="robotsFollow" class="ml-2 text-sm text-gray-700">
+                                Allow following links (follow)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Open Graph & Social Preview Section -->
+                <div class="space-y-6 border-t border-gray-200 pt-6">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-800">Social Media Preview</h3>
+                        <button type="button" id="preview-toggle" class="btn btn-secondary btn-sm">
+                            <i class="ri-eye-line mr-1"></i> Preview
+                        </button>
+                    </div>
+
+                    <!-- OG Title -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="og_title_en" class="block text-sm font-medium text-gray-700">
+                                OG Title (English)
+                            </label>
+                            <input type="text" id="og_title_en" value="<%= post ? (post.openGraphTitle?.en || '') : '' %>"
+                                   class="form-input" placeholder="Leave blank to use page title">
+                            <p class="mt-1 text-xs text-gray-500">Max 60 characters recommended</p>
+                        </div>
+                        <div>
+                            <label for="og_title_hi" class="block text-sm font-medium text-gray-700">
+                                OG Title (Hindi)
+                            </label>
+                            <input type="text" id="og_title_hi" value="<%= post ? (post.openGraphTitle?.hi || '') : '' %>"
+                                   class="form-input">
+                        </div>
+                    </div>
+
+                    <!-- OG Description -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="og_desc_en" class="block text-sm font-medium text-gray-700">
+                                OG Description (English)
+                            </label>
+                            <textarea id="og_desc_en" rows="2" class="form-input"
+                                      placeholder="Leave blank to use meta description"><%= post ? (post.openGraphDescription?.en || '') : '' %></textarea>
+                            <p class="mt-1 text-xs text-gray-500">Max 160 characters recommended</p>
+                        </div>
+                        <div>
+                            <label for="og_desc_hi" class="block text-sm font-medium text-gray-700">
+                                OG Description (Hindi)
+                            </label>
+                            <textarea id="og_desc_hi" rows="2" class="form-input"><%= post ? (post.openGraphDescription?.hi || '') : '' %></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Twitter Card Section -->
+                    <div class="space-y-4 border-t border-gray-200 pt-4">
+                        <h4 class="text-sm font-medium text-gray-700">Twitter Card</h4>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="tw_title_en" class="block text-sm font-medium text-gray-700">
+                                    Twitter Title (English)
+                                </label>
+                                <input type="text" id="tw_title_en" value="<%= post ? (post.twitterTitle?.en || '') : '' %>"
+                                       class="form-input" placeholder="Leave blank to use OG title">
+                                <p class="mt-1 text-xs text-gray-500">Max 60 characters</p>
+                            </div>
+                            <div>
+                                <label for="tw_title_hi" class="block text-sm font-medium text-gray-700">
+                                    Twitter Title (Hindi)
+                                </label>
+                                <input type="text" id="tw_title_hi" value="<%= post ? (post.twitterTitle?.hi || '') : '' %>"
+                                       class="form-input">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="tw_desc_en" class="block text-sm font-medium text-gray-700">
+                                    Twitter Description (English)
+                                </label>
+                                <textarea id="tw_desc_en" rows="2" class="form-input"
+                                          placeholder="Leave blank to use OG description"><%= post ? (post.twitterDescription?.en || '') : '' %></textarea>
+                                <p class="mt-1 text-xs text-gray-500">Max 160 characters</p>
+                            </div>
+                            <div>
+                                <label for="tw_desc_hi" class="block text-sm font-medium text-gray-700">
+                                    Twitter Description (Hindi)
+                                </label>
+                                <textarea id="tw_desc_hi" rows="2" class="form-input"><%= post ? (post.twitterDescription?.hi || '') : '' %></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Form Footer -->
@@ -112,6 +243,85 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- SEO Preview Modal -->
+<div id="preview-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto">
+        <div class="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+            <h3 class="text-lg font-semibold">SEO & Social Preview</h3>
+            <button type="button" id="close-preview" class="text-gray-500 hover:text-gray-700">
+                <i class="ri-close-line text-xl"></i>
+            </button>
+        </div>
+
+        <div class="p-6 space-y-8">
+            <!-- Google Search Preview -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 mb-3">Google Search Result</h4>
+                <div class="border border-gray-300 rounded p-4 bg-gray-50 text-sm">
+                    <div class="text-blue-600 hover:underline" id="preview-url">
+                        https://uu7stars.com/blog/your-slug
+                    </div>
+                    <div class="text-gray-800 font-semibold text-base mt-1" id="preview-title">
+                        Your Page Title
+                    </div>
+                    <div class="text-gray-600 text-sm mt-1" id="preview-description">
+                        Your meta description appears here...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Facebook/LinkedIn Preview -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 mb-3">Facebook & LinkedIn Preview</h4>
+                <div class="border border-gray-300 rounded overflow-hidden bg-gray-50">
+                    <img id="preview-og-image" src="https://via.placeholder.com/500x261" alt="OG Image"
+                         class="w-full h-auto max-h-48 object-cover">
+                    <div class="p-4">
+                        <div class="text-blue-600 text-xs font-semibold" id="preview-og-url">
+                            uu7stars.com
+                        </div>
+                        <div class="text-gray-800 font-semibold text-sm mt-1" id="preview-og-title">
+                            OG Title
+                        </div>
+                        <div class="text-gray-600 text-sm mt-1" id="preview-og-desc">
+                            OG description...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Twitter Preview -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-700 mb-3">Twitter/X Preview</h4>
+                <div class="border border-gray-300 rounded p-4 bg-black text-white text-sm">
+                    <div class="flex gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gray-600"></div>
+                        <div class="flex-1">
+                            <div class="font-bold">Starsuu7</div>
+                            <div class="text-gray-400 text-xs">@starsuu7</div>
+                            <div class="mt-2 text-white" id="preview-tw-title">
+                                Your tweet text
+                            </div>
+                            <div class="mt-2 border border-gray-600 rounded">
+                                <img id="preview-tw-image" src="https://via.placeholder.com/500x261" alt="Card"
+                                     class="w-full h-auto max-h-32 object-cover">
+                                <div class="p-3 bg-gray-900">
+                                    <div class="text-gray-500 text-xs" id="preview-tw-url">
+                                        uu7stars.com
+                                    </div>
+                                    <div class="text-white font-bold" id="preview-tw-card-title">
+                                        Card Title
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -221,6 +431,57 @@
         generateHiBtn.addEventListener('click', () => handleAiGeneration('hi', generateHiBtn));
     }
 
+    // --- SEO Preview Modal Logic ---
+    const previewToggle = document.getElementById('preview-toggle');
+    const previewModal = document.getElementById('preview-modal');
+    const closePreview = document.getElementById('close-preview');
+
+    previewToggle?.addEventListener('click', () => {
+        updatePreview();
+        previewModal.classList.remove('hidden');
+    });
+
+    closePreview?.addEventListener('click', () => {
+        previewModal.classList.add('hidden');
+    });
+
+    previewModal?.addEventListener('click', (e) => {
+        if (e.target === previewModal) {
+            previewModal.classList.add('hidden');
+        }
+    });
+
+    function updatePreview() {
+        const titleEn = document.getElementById('title_en').value || 'Your Title';
+        const slug = document.getElementById('slug').value || 'your-slug';
+        const imagePath = imagePathInput.value;
+
+        // Google Preview
+        document.getElementById('preview-url').textContent = `https://uu7stars.com/blog/${slug}/`;
+        document.getElementById('preview-title').textContent = titleEn;
+        document.getElementById('preview-description').textContent = document.getElementById('og_desc_en').value || easyMDE_en.value().substring(0, 160) || 'Your description...';
+
+        // OG Preview
+        const ogTitle = document.getElementById('og_title_en').value || titleEn;
+        const ogDesc = document.getElementById('og_desc_en').value || document.getElementById('og_desc_en').placeholder;
+        document.getElementById('preview-og-url').textContent = 'uu7stars.com';
+        document.getElementById('preview-og-title').textContent = ogTitle;
+        document.getElementById('preview-og-desc').textContent = ogDesc;
+        document.getElementById('preview-og-image').src = imagePath || 'https://via.placeholder.com/500x261';
+
+        // Twitter Preview
+        const twTitle = document.getElementById('tw_title_en').value || ogTitle;
+        document.getElementById('preview-tw-title').textContent = twTitle;
+        document.getElementById('preview-tw-url').textContent = 'uu7stars.com';
+        document.getElementById('preview-tw-card-title').textContent = ogTitle;
+        document.getElementById('preview-tw-image').src = imagePath || 'https://via.placeholder.com/500x261';
+    }
+
+    // Update preview when key inputs change
+    ['title_en', 'focusKeyword', 'og_title_en', 'og_desc_en', 'tw_title_en', 'image'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', updatePreview);
+    });
+
     // --- Form Submission Logic ---
     const form = document.getElementById('blogForm');
     const submitButton = document.getElementById('submitButton');
@@ -243,6 +504,27 @@
             author: document.getElementById('author').value,
             image: imagePathInput.value,
             tags: document.getElementById('tags').value.split(',').map(tag => tag.trim()).filter(Boolean),
+            // SEO Fields
+            focusKeyword: document.getElementById('focusKeyword').value || '',
+            canonicalUrl: document.getElementById('canonicalUrl').value || '',
+            robotsIndex: document.getElementById('robotsIndex').checked,
+            robotsFollow: document.getElementById('robotsFollow').checked,
+            openGraphTitle: {
+                en: document.getElementById('og_title_en').value || '',
+                hi: document.getElementById('og_title_hi').value || '',
+            },
+            openGraphDescription: {
+                en: document.getElementById('og_desc_en').value || '',
+                hi: document.getElementById('og_desc_hi').value || '',
+            },
+            twitterTitle: {
+                en: document.getElementById('tw_title_en').value || '',
+                hi: document.getElementById('tw_title_hi').value || '',
+            },
+            twitterDescription: {
+                en: document.getElementById('tw_desc_en').value || '',
+                hi: document.getElementById('tw_desc_hi').value || '',
+            },
         };
         try {
             const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];

@@ -101,7 +101,16 @@ router.get('/blog', async (req, res) => {
             author: post.author,
             image: post.image,
             tags: post.tags,
-            publishedAt: post.publishedAt
+            publishedAt: post.publishedAt,
+            focusKeyword: post.focusKeyword,
+            canonicalUrl: post.canonicalUrl,
+            robotsIndex: post.robotsIndex,
+            robotsFollow: post.robotsFollow,
+            openGraphTitle: post.openGraphTitle,
+            openGraphDescription: post.openGraphDescription,
+            openGraphImage: post.openGraphImage,
+            twitterTitle: post.twitterTitle,
+            twitterDescription: post.twitterDescription
         }));
         res.json(formattedPosts);
     } catch (err) {

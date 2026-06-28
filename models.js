@@ -42,10 +42,19 @@ const blogPostSchema = new mongoose.Schema({
     excerpt: { type: localizedStringSchema, required: true },
     body: { type: localizedStringSchema, required: true },
 
-    // --- NEW SEO FIELDS ---
+    // --- SEO FIELDS ---
     metaTitle: { type: localizedStringSchema, required: false },
     metaDescription: { type: localizedStringSchema, required: false },
-    // --- END NEW FIELDS ---
+    focusKeyword: { type: String, trim: true, default: '' },
+    canonicalUrl: { type: String, trim: true, default: '' },
+    robotsIndex: { type: Boolean, default: true },
+    robotsFollow: { type: Boolean, default: true },
+    openGraphTitle: { type: localizedStringSchema, required: false },
+    openGraphDescription: { type: localizedStringSchema, required: false },
+    openGraphImage: { type: String, trim: true, default: '' },
+    twitterTitle: { type: localizedStringSchema, required: false },
+    twitterDescription: { type: localizedStringSchema, required: false },
+    // --- END SEO FIELDS ---
 
     author: { type: String, required: true, default: 'Starsuu7 Expert' },
     image: { type: String, required: true },
