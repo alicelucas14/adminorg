@@ -108,6 +108,16 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Custom Schema Markup -->
+                <div class="space-y-4 border-t border-gray-200 pt-4 mt-4">
+                    <div>
+                        <label for="schemaMarkup" class="block text-sm font-medium text-gray-700">
+                            Custom Schema Markup (JSON-LD) <span class="text-gray-500 text-xs ml-1">(Optional JSON object or script tag)</span>
+                        </label>
+                        <textarea id="schemaMarkup" rows="4" class="form-input font-mono text-xs" placeholder='{"@context": "https://schema.org", "@type": "Game", ...}'><%= game ? game.schemaMarkup : '' %></textarea>
+                    </div>
+                </div>
             </div>
             
             <!-- Form Footer -->
@@ -194,6 +204,7 @@
             isHot: document.getElementById('isHot').checked,
             isNew: document.getElementById('isNew').checked,
             isActive: document.getElementById('isActive').checked,
+            schemaMarkup: document.getElementById('schemaMarkup').value || '',
         };
         
         try {

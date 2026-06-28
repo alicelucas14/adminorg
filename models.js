@@ -27,7 +27,8 @@ const gameSchema = new mongoose.Schema({
     image: { type: String, required: true },
     isNew: { type: Boolean, default: false },
     isHot: { type: Boolean, default: false },
-    isActive: { type: Boolean, default: true, index: true }
+    isActive: { type: Boolean, default: true, index: true },
+    schemaMarkup: { type: String, default: '' }
 }, { timestamps: true });
 
 
@@ -60,7 +61,8 @@ const blogPostSchema = new mongoose.Schema({
     image: { type: String, required: true },
     tags: [{ type: String, trim: true, lowercase: true }],
     publishedAt: { type: Date, default: Date.now },
-    isPublished: { type: Boolean, default: true, index: true }
+    isPublished: { type: Boolean, default: true, index: true },
+    schemaMarkup: { type: String, default: '' }
 }, { timestamps: true });
 
 
@@ -87,7 +89,8 @@ const reviewSchema = new mongoose.Schema({
     image: { type: String, required: true },
     pros: { en: [{ type: String }], hi: [{ type: String }] },
     cons: { en: [{ type: String }], hi: [{ type: String }] },
-    isPublished: { type: Boolean, default: true, index: true }
+    isPublished: { type: Boolean, default: true, index: true },
+    schemaMarkup: { type: String, default: '' }
 }, { timestamps: true });
 
 
@@ -164,7 +167,8 @@ const pageSchema = new mongoose.Schema({
     twitterDescription: { type: localizedStringSchema, required: false },
     // --- END SEO FIELDS ---
 
-    isPublished: { type: Boolean, default: true, index: true }
+    isPublished: { type: Boolean, default: true, index: true },
+    schemaMarkup: { type: String, default: '' }
 }, { timestamps: true });
 
 

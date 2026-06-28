@@ -99,7 +99,7 @@ router.delete('/bulk-delete', async (req, res) => {
  * @access  Private (Admin)
  */
 router.post('/', async (req, res) => {
-    const { gameId, name, category, provider, image, isNew, isHot, isActive } = req.body;
+    const { gameId, name, category, provider, image, isNew, isHot, isActive, schemaMarkup } = req.body;
     if (!gameId || !name || !category || !provider || !image) {
         return res.status(400).json({ message: 'Please fill all required fields.' });
     }
@@ -108,7 +108,7 @@ router.post('/', async (req, res) => {
     }
 
     try {
-        const newGame = new Game({ gameId, name, category, provider, image, isNew, isHot, isActive });
+        const newGame = new Game({ gameId, name, category, provider, image, isNew, isHot, isActive, schemaMarkup });
         const savedGame = await newGame.save();
         res.status(201).json(savedGame);
     } catch (error) {

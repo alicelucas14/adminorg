@@ -149,7 +149,8 @@ router.post('/', async (req, res) => {
     const {
         slug, title, excerpt, body, author, image, tags, publishedAt, isPublished,
         metaTitle, metaDescription, focusKeyword, canonicalUrl, robotsIndex, robotsFollow,
-        openGraphTitle, openGraphDescription, openGraphImage, twitterTitle, twitterDescription
+        openGraphTitle, openGraphDescription, openGraphImage, twitterTitle, twitterDescription,
+        schemaMarkup
     } = req.body;
     if (!slug || !title || !excerpt || !body || !image) {
         return res.status(400).json({ message: 'Please provide slug, title, excerpt, body, and image.' });
@@ -164,7 +165,8 @@ router.post('/', async (req, res) => {
         const newPost = new BlogPost({
             slug, title, excerpt, body, author, image, tags, publishedAt: publishedAt || new Date(), isPublished,
             metaTitle, metaDescription, focusKeyword, canonicalUrl, robotsIndex, robotsFollow,
-            openGraphTitle, openGraphDescription, openGraphImage, twitterTitle, twitterDescription
+            openGraphTitle, openGraphDescription, openGraphImage, twitterTitle, twitterDescription,
+            schemaMarkup
         });
         const savedPost = await newPost.save();
         res.status(201).json(savedPost);

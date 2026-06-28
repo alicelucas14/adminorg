@@ -77,6 +77,7 @@ router.get('/games', async (req, res) => {
             image: game.image,
             isNew: game.isNew,
             isHot: game.isHot,
+            schemaMarkup: game.schemaMarkup || '',
         }));
         res.json(formattedGames);
     } catch (err) {

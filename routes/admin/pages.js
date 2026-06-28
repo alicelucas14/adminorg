@@ -146,7 +146,8 @@ router.post('/', async (req, res) => {
     const {
         slug, title, body, isPublished,
         metaTitle, metaDescription, focusKeyword, canonicalUrl, robotsIndex, robotsFollow,
-        openGraphTitle, openGraphDescription, openGraphImage, twitterTitle, twitterDescription
+        openGraphTitle, openGraphDescription, openGraphImage, twitterTitle, twitterDescription,
+        schemaMarkup
     } = req.body;
     if (!slug || !title || !body) {
         return res.status(400).json({ message: 'Please provide slug, title, and body.' });
@@ -161,7 +162,8 @@ router.post('/', async (req, res) => {
         const newPage = new Page({
             slug, title, body, isPublished,
             metaTitle, metaDescription, focusKeyword, canonicalUrl, robotsIndex, robotsFollow,
-            openGraphTitle, openGraphDescription, openGraphImage, twitterTitle, twitterDescription
+            openGraphTitle, openGraphDescription, openGraphImage, twitterTitle, twitterDescription,
+            schemaMarkup
         });
         const savedPage = await newPage.save();
         res.status(201).json(savedPage);

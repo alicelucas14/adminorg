@@ -233,6 +233,16 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Custom Schema Markup -->
+                    <div class="space-y-4 border-t border-gray-200 pt-4 mt-4">
+                        <div>
+                            <label for="schemaMarkup" class="block text-sm font-medium text-gray-700">
+                                Custom Schema Markup (JSON-LD) <span class="text-gray-500 text-xs ml-1">(Optional JSON object or script tag)</span>
+                            </label>
+                            <textarea id="schemaMarkup" rows="4" class="form-input font-mono text-xs" placeholder='{"@context": "https://schema.org", "@type": "FAQPage", ...}'><%= post ? post.schemaMarkup : '' %></textarea>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -525,6 +535,7 @@
                 en: document.getElementById('tw_desc_en').value || '',
                 hi: document.getElementById('tw_desc_hi').value || '',
             },
+            schemaMarkup: document.getElementById('schemaMarkup').value || '',
         };
         try {
             const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];

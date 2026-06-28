@@ -149,7 +149,7 @@ router.delete('/bulk-delete', async (req, res) => {
  * @access  Private (Admin)
  */
 router.post('/', async (req, res) => {
-    const { slug, title, excerpt, body, gameName, developer, rating, image, pros, cons, isPublished, metaTitle, metaDescription } = req.body;
+    const { slug, title, excerpt, body, gameName, developer, rating, image, pros, cons, isPublished, metaTitle, metaDescription, schemaMarkup } = req.body;
     if (!slug || !title || !excerpt || !body || !gameName || !developer || !rating || !image) {
         return res.status(400).json({ message: 'Please provide all required fields.' });
     }
@@ -162,7 +162,7 @@ router.post('/', async (req, res) => {
 
     try {
         const newReview = new Review({
-            slug, title, excerpt, body, gameName, developer, rating, image, pros, cons, isPublished, metaTitle, metaDescription
+            slug, title, excerpt, body, gameName, developer, rating, image, pros, cons, isPublished, metaTitle, metaDescription, schemaMarkup
         });
         const savedReview = await newReview.save();
         res.status(201).json(savedReview);
