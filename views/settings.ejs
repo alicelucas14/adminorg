@@ -84,6 +84,37 @@
                         <div><label for="liveChatUrl" class="block text-sm font-medium">Live Chat URL</label><input type="url" id="liveChatUrl" value="<%= settings ? settings.liveChatUrl : '' %>" class="form-input"></div>
                      </div>
                 </div>
+
+                <!-- Technical SEO Settings Section -->
+                <div class="p-6 space-y-4">
+                     <h3 class="text-lg font-semibold text-gray-800">Technical SEO Settings</h3>
+                     
+                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label for="googleAnalyticsId" class="block text-sm font-medium text-gray-700">Google Analytics ID</label>
+                            <input type="text" id="googleAnalyticsId" value="<%= settings ? settings.googleAnalyticsId : '' %>" class="form-input" placeholder="e.g., G-XXXXXXXXXX">
+                        </div>
+                        <div>
+                            <label for="googleSearchConsoleVerification" class="block text-sm font-medium text-gray-700">Google Search Console Meta Value</label>
+                            <input type="text" id="googleSearchConsoleVerification" value="<%= settings ? settings.googleSearchConsoleVerification : '' %>" class="form-input" placeholder="Value from content='...'">
+                        </div>
+                        <div>
+                            <label for="ahrefsVerification" class="block text-sm font-medium text-gray-700">Ahrefs Site Verification Meta Value</label>
+                            <input type="text" id="ahrefsVerification" value="<%= settings ? settings.ahrefsVerification : '' %>" class="form-input" placeholder="Value from content='...'">
+                        </div>
+                     </div>
+
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                        <div>
+                            <label for="customHeaderScripts" class="block text-sm font-medium text-gray-700">Custom Header Scripts (Inside &lt;head&gt;)</label>
+                            <textarea id="customHeaderScripts" rows="4" class="form-input font-mono text-xs" placeholder="e.g. <!-- Custom scripts -->"><%= settings ? settings.customHeaderScripts : '' %></textarea>
+                        </div>
+                        <div>
+                            <label for="customFooterScripts" class="block text-sm font-medium text-gray-700">Custom Footer Scripts (Bottom of &lt;body&gt;)</label>
+                            <textarea id="customFooterScripts" rows="4" class="form-input font-mono text-xs" placeholder="e.g. <!-- Custom scripts -->"><%= settings ? settings.customFooterScripts : '' %></textarea>
+                        </div>
+                     </div>
+                </div>
             </div>
 
             <!-- Form Footer -->
@@ -176,7 +207,12 @@
             facebookUrl: document.getElementById('facebookUrl').value,
             youtubeUrl: document.getElementById('youtubeUrl').value,
             twitterUrl: document.getElementById('twitterUrl').value,
-            liveChatUrl: document.getElementById('liveChatUrl').value
+            liveChatUrl: document.getElementById('liveChatUrl').value,
+            googleAnalyticsId: document.getElementById('googleAnalyticsId').value,
+            googleSearchConsoleVerification: document.getElementById('googleSearchConsoleVerification').value,
+            ahrefsVerification: document.getElementById('ahrefsVerification').value,
+            customHeaderScripts: document.getElementById('customHeaderScripts').value,
+            customFooterScripts: document.getElementById('customFooterScripts').value
         };
         
         try {

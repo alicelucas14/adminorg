@@ -129,7 +129,14 @@ const settingSchema = new mongoose.Schema({
     facebookUrl: { type: String, default: 'https://facebook.com/yourprofile' },
     youtubeUrl: { type: String, default: 'https://youtube.com/yourchannel' },
     twitterUrl: { type: String, default: 'https://twitter.com/yourprofile' },
-    liveChatUrl: { type: String, default: 'https://tawk.to/chat/68412a12e13e99190e0d7e62/1isv8onah' }
+    liveChatUrl: { type: String, default: 'https://tawk.to/chat/68412a12e13e99190e0d7e62/1isv8onah' },
+    
+    // --- Technical SEO Fields ---
+    googleAnalyticsId: { type: String, default: 'G-NSX5MEH182' },
+    googleSearchConsoleVerification: { type: String, default: '' },
+    ahrefsVerification: { type: String, default: '9b4a068be0accae70bb69802a875d1f5d6f987bb64e6f428005d97af07a52f2c' },
+    customHeaderScripts: { type: String, default: '' },
+    customFooterScripts: { type: String, default: '' }
 }, { timestamps: true });
 
 
