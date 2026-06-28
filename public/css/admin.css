@@ -80,28 +80,31 @@
     }
     .btn-primary {
         /* Replaced @apply with raw classes */
-        background-color: var(--color-primary-600); color: #fff;
-        --tw-bg-opacity: 1; --tw-text-opacity: 1;
-        background-color: rgba(37, 99, 235, var(--tw-bg-opacity));
-        color: rgba(255, 255, 255, var(--tw-text-opacity));
+        background-color: var(--color-primary-600) !important;
+        color: #ffffff !important;
     }
     .btn-primary:hover {
-        background-color: var(--color-primary-700);
+        background-color: var(--color-primary-700) !important;
+        color: #ffffff !important;
     }
     .btn-secondary {
         /* Replaced @apply with raw classes */
-        background-color: #fff; color: var(--color-gray-700); border-color: var(--color-gray-300); 
+        background-color: #ffffff !important;
+        color: var(--color-gray-700) !important;
+        border-color: var(--color-gray-300) !important; 
         border-width: 1px;
     }
     .btn-secondary:hover {
-        background-color: var(--color-gray-50);
+        background-color: var(--color-gray-50) !important;
     }
     .btn-danger {
         /* Replaced @apply with raw classes */
-        background-color: #ef4444; color: #fff;
+        background-color: #ef4444 !important;
+        color: #ffffff !important;
     }
     .btn-danger:hover {
-        background-color: #dc2626;
+        background-color: #dc2626 !important;
+        color: #ffffff !important;
     }
     .card {
         /* Replaced @apply with raw classes */
