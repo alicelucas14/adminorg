@@ -4,7 +4,7 @@
 <%- include('partials/_sidebar') %>
 
 <!-- Stat Widgets Grid -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
     
     <!-- Games Widget -->
     <div class="card p-6 flex items-center">
@@ -49,6 +49,17 @@
             <p class="text-3xl font-bold text-gray-800"><%= counts.promotions %></p>
         </div>
     </div>
+
+    <!-- Broken Links Widget -->
+    <a href="<%= adminBase %>/link-checker" class="card p-6 flex items-center hover:shadow-md transition-shadow duration-200">
+        <div class="bg-red-100 text-red-600 rounded-full p-3 mr-4">
+            <i class="ri-link-unlink text-3xl"></i>
+        </div>
+        <div>
+            <p class="text-gray-500 text-sm font-medium">Broken Links</p>
+            <p class="text-3xl font-bold <%= counts.brokenLinks > 0 ? 'text-red-600' : 'text-gray-800' %>"><%= counts.brokenLinks %></p>
+        </div>
+    </a>
 </div>
 
 <!-- Recent Activity Section -->

@@ -1,0 +1,293 @@
+<%- include('partials/_header') %>
+<%- include('partials/_sidebar') %>
+
+<!-- Page Header & Actions -->
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h2 class="text-3xl font-bold text-gray-800">Link Checker</h2>
+        <p class="text-gray-500 mt-1">Scan database content for broken internal and external links.</p>
+    </div>
+    <div>
+        <button id="start-scan-btn" class="btn btn-primary bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2">
+            <i class="ri-refresh-line" id="scan-icon"></i>
+            <span id="scan-btn-text">Run Link Scan</span>
+        </button>
+    </div>
+</div>
+
+<!-- Scan Status / Progress Bar (hidden by default) -->
+<div id="scan-progress-card" class="hidden mb-6 card p-6 bg-blue-50 border border-blue-200 rounded-lg">
+    <div class="flex justify-between items-center mb-2">
+        <span class="text-sm font-semibold text-blue-800 flex items-center gap-2">
+            <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Scanning database content for links...
+        </span>
+        <span id="scan-progress-text" class="text-sm font-medium text-blue-700">0/0 links checked</span>
+    </div>
+    <div class="w-full bg-blue-200 rounded-full h-2.5">
+        <div id="scan-progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+    </div>
+</div>
+
+<!-- Overview Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+    <div class="card bg-white p-6 rounded-lg shadow-sm border border-gray-200 flex items-center">
+        <div class="bg-blue-100 text-blue-600 rounded-full p-3 mr-4">
+            <i class="ri-link text-3xl"></i>
+        </div>
+        <div>
+            <p class="text-gray-500 text-sm font-medium">Total Checked Links</p>
+            <p class="text-3xl font-bold text-gray-800" id="total-count"><%= totalCount %></p>
+        </div>
+    </div>
+    <div class="card bg-white p-6 rounded-lg shadow-sm border border-gray-200 flex items-center">
+        <div class="bg-red-100 text-red-600 rounded-full p-3 mr-4">
+            <i class="ri-link-unlink text-3xl"></i>
+        </div>
+        <div>
+            <p class="text-gray-500 text-sm font-medium">Broken Links</p>
+            <p class="text-3xl font-bold text-red-600" id="broken-count"><%= brokenCount %></p>
+        </div>
+    </div>
+    <div class="card bg-white p-6 rounded-lg shadow-sm border border-gray-200 flex items-center">
+        <div class="bg-green-100 text-green-600 rounded-full p-3 mr-4">
+            <i class="ri-checkbox-circle-line text-3xl"></i>
+        </div>
+        <div>
+            <p class="text-gray-500 text-sm font-medium">Working Links</p>
+            <p class="text-3xl font-bold text-green-600" id="working-count"><%= totalCount - brokenCount %></p>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs & Table -->
+<div class="card bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div class="border-b border-gray-200 bg-gray-50">
+        <nav class="flex -mb-px px-6" aria-label="Tabs">
+            <button id="tab-broken" class="border-b-2 border-primary-600 py-4 px-4 text-sm font-semibold text-primary-600 focus:outline-none flex items-center gap-2">
+                <i class="ri-error-warning-line"></i> Broken Links (<span id="tab-broken-count"><%= brokenCount %></span>)
+            </button>
+            <button id="tab-all" class="border-b-2 border-transparent py-4 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none flex items-center gap-2 ml-8">
+                <i class="ri-list-check-3"></i> All Checked Links (<span id="tab-all-count"><%= totalCount %></span>)
+            </button>
+        </nav>
+    </div>
+
+    <div class="p-6">
+        <!-- Broken Links View -->
+        <div id="view-broken">
+            <% if (brokenCount === 0) { %>
+                <div class="text-center py-12">
+                    <div class="bg-green-100 text-green-600 rounded-full p-4 inline-flex mb-4">
+                        <i class="ri-checkbox-circle-line text-4xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800">No broken links found!</h3>
+                    <p class="text-gray-500 mt-1">Excellent! All internal and external links are working perfectly.</p>
+                </div>
+            <% } else { %>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Link Details</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Error Details</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Found In</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 bg-white">
+                            <% results.filter(r => r.status === 'broken').forEach(r => { %>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm font-semibold text-gray-900 truncate max-w-md"><%= r.anchorText || '(No Text)' %></div>
+                                        <div class="text-xs text-gray-500 truncate max-w-md"><a href="<%= r.url %>" target="_blank" class="text-primary-600 hover:underline"><%= r.url %></a></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2.5 py-0.5 inline-flex text-xs font-semibold rounded-full <%= r.type === 'internal' ? 'bg-indigo-100 text-indigo-800' : 'bg-orange-100 text-orange-800' %>">
+                                            <%= r.type %>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-red-600 font-semibold">
+                                            <%= r.errorMessage || ('HTTP ' + r.statusCode) %>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm font-medium text-gray-900"><%= r.sourceTitle %></div>
+                                        <div class="text-xs text-gray-500"><%= r.sourceModel %> &rarr; <span class="font-mono text-gray-600"><%= r.sourceFieldName %></span></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <% 
+                                            let editUrl = '';
+                                            if (r.sourceModel === 'BlogPost') editUrl = adminBase + '/blog/edit/' + r.sourceId;
+                                            else if (r.sourceModel === 'Page') editUrl = adminBase + '/pages/edit/' + r.sourceId;
+                                            else if (r.sourceModel === 'Review') editUrl = adminBase + '/reviews/edit/' + r.sourceId;
+                                            else if (r.sourceModel === 'Promotion') editUrl = adminBase + '/promotions/edit/' + r.sourceId;
+                                            else if (r.sourceModel === 'Setting') editUrl = adminBase + '/settings';
+                                        %>
+                                        <% if (editUrl) { %>
+                                            <a href="<%= editUrl %>" class="text-primary-600 hover:text-primary-900 flex items-center gap-1 font-semibold">
+                                                <i class="ri-edit-line"></i> Edit Source
+                                            </a>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            <% } %>
+        </div>
+
+        <!-- All Checked Links View (hidden by default) -->
+        <div id="view-all" class="hidden">
+            <% if (results.length === 0) { %>
+                <div class="text-center py-12 text-gray-500">
+                    <p>No links checked yet. Run a link scan to populate results.</p>
+                </div>
+            <% } else { %>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Link Details</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Source</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 bg-white">
+                            <% results.forEach(r => { %>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm font-semibold text-gray-900 truncate max-w-md"><%= r.anchorText || '(No Text)' %></div>
+                                        <div class="text-xs text-gray-500 truncate max-w-md"><a href="<%= r.url %>" target="_blank" class="text-primary-600 hover:underline"><%= r.url %></a></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2.5 py-0.5 inline-flex text-xs font-semibold rounded-full <%= r.type === 'internal' ? 'bg-indigo-100 text-indigo-800' : 'bg-orange-100 text-orange-800' %>">
+                                            <%= r.type %>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2.5 py-0.5 inline-flex text-xs font-semibold rounded-full <%= r.status === 'working' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
+                                            <%= r.status === 'working' ? 'Working' : 'Broken' %>
+                                        </span>
+                                        <% if (r.status === 'broken') { %>
+                                            <span class="text-xs text-red-500 ml-2 font-semibold">(<%= r.errorMessage || r.statusCode %>)</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm font-medium text-gray-900"><%= r.sourceTitle %></div>
+                                        <div class="text-xs text-gray-500"><%= r.sourceModel %> &rarr; <span class="font-mono text-gray-600"><%= r.sourceFieldName %></span></div>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Tab Navigation Logic
+    const tabBroken = document.getElementById('tab-broken');
+    const tabAll = document.getElementById('tab-all');
+    const viewBroken = document.getElementById('view-broken');
+    const viewAll = document.getElementById('view-all');
+
+    tabBroken.addEventListener('click', () => {
+        tabBroken.className = "border-b-2 border-primary-600 py-4 px-4 text-sm font-semibold text-primary-600 focus:outline-none flex items-center gap-2";
+        tabAll.className = "border-b-2 border-transparent py-4 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none flex items-center gap-2 ml-8";
+        viewBroken.classList.remove('hidden');
+        viewAll.classList.add('hidden');
+    });
+
+    tabAll.addEventListener('click', () => {
+        tabAll.className = "border-b-2 border-primary-600 py-4 px-4 text-sm font-semibold text-primary-600 focus:outline-none flex items-center gap-2";
+        tabBroken.className = "border-b-2 border-transparent py-4 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none flex items-center gap-2 ml-8";
+        viewAll.classList.remove('hidden');
+        viewBroken.classList.add('hidden');
+    });
+
+    // Scan Execution & Monitoring Logic
+    const startScanBtn = document.getElementById('start-scan-btn');
+    const scanIcon = document.getElementById('scan-icon');
+    const scanBtnText = document.getElementById('scan-btn-text');
+    const scanProgressCard = document.getElementById('scan-progress-card');
+    const scanProgressText = document.getElementById('scan-progress-text');
+    const scanProgressBar = document.getElementById('scan-progress-bar');
+    
+    let pollInterval = null;
+
+    function checkScanStatus() {
+        fetch('/api/admin/link-checker/status')
+            .then(res => res.json())
+            .then(data => {
+                if (data.isScanning) {
+                    showScanningState(data.checked, data.total);
+                } else {
+                    if (pollInterval) {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        showToast('Link scan completed successfully!', 'success');
+                        setTimeout(() => window.location.reload(), 1200);
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching scan status:', err);
+            });
+    }
+
+    function showScanningState(checked, total) {
+        startScanBtn.disabled = true;
+        startScanBtn.classList.remove('bg-primary-600', 'hover:bg-primary-700');
+        startScanBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+        scanIcon.classList.add('animate-spin');
+        scanBtnText.textContent = 'Scanning...';
+        scanProgressCard.classList.remove('hidden');
+        
+        const percent = total > 0 ? Math.round((checked / total) * 100) : 0;
+        scanProgressText.textContent = `${checked}/${total} links checked`;
+        scanProgressBar.style.width = `${percent}%`;
+
+        if (!pollInterval) {
+            pollInterval = setInterval(checkScanStatus, 1500);
+        }
+    }
+
+    startScanBtn.addEventListener('click', () => {
+        startScanBtn.disabled = true;
+        startScanBtn.classList.remove('bg-primary-600', 'hover:bg-primary-700');
+        startScanBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+        scanIcon.classList.add('animate-spin');
+        scanBtnText.textContent = 'Starting Scan...';
+
+        fetch('/api/admin/link-checker/scan', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                showToast('Link scan started in the background.', 'success');
+                showScanningState(0, data.status.total || 0);
+            })
+            .catch(err => {
+                showToast('Failed to start link scan.', 'error');
+                console.error(err);
+                startScanBtn.disabled = false;
+                startScanBtn.classList.add('bg-primary-600', 'hover:bg-primary-700');
+                startScanBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                scanIcon.classList.remove('animate-spin');
+                scanBtnText.textContent = 'Run Link Scan';
+            });
+    });
+
+    // Check status on page load to restore UI state if a scan is already running
+    checkScanStatus();
+</script>
+
+<%- include('partials/_footer') %>

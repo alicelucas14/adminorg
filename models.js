@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const User = require('./models/User');
 const Comment = require('./models/Comment'); // <-- IMPORT the Comment model
 const BlogComment = require('./models/BlogComment');
+const LinkCheckResult = require('./models/LinkCheckResult');
 
 /**
  * Defines a schema for storing text in multiple languages.
@@ -180,4 +181,4 @@ const Promotion = mongoose.models.Promotion || mongoose.model('Promotion', promo
 const Setting = mongoose.models.Setting || mongoose.model('Setting', settingSchema);
 const Page = mongoose.models.Page || mongoose.model('Page', pageSchema);
 
-module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment, Page };
+module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment, Page, LinkCheckResult };

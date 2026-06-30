@@ -3,22 +3,23 @@
 
 const express = require('express');
 const router = express.Router();
-const { Game, BlogPost, Review, Promotion, Setting, Page } = require('../../models');
+const { Game, BlogPost, Review, Promotion, Setting, Page, LinkCheckResult } = require('../../models');
 
 const frontendUrl = process.env.FRONTEND_URL;
 
 // --- Dashboard and other routes are unchanged ---
 router.get('/dashboard', async (request, response) => {
     try {
-        const [ gameCount, postCount, reviewCount, promotionCount, recentGames, recentPosts ] = await Promise.all([
+        const [ gameCount, postCount, reviewCount, promotionCount, brokenLinksCount, recentGames, recentPosts ] = await Promise.all([
             Game.countDocuments(),
             BlogPost.countDocuments(),
             Review.countDocuments(),
             Promotion.countDocuments(),
+            LinkCheckResult.countDocuments({ status: 'broken' }),
             Game.find({}).sort({ createdAt: -1 }).limit(5).select('name.en gameId createdAt _id'),
             BlogPost.find({}).sort({ publishedAt: -1 }).limit(5).select('title.en slug publishedAt _id')
         ]);
-        response.render('dashboard', { user: request.user, counts: { games: gameCount, posts: postCount, reviews: reviewCount, promotions: promotionCount }, recentItems: { games: recentGames, posts: recentPosts }, page: 'dashboard', title: 'Dashboard', frontendUrl: frontendUrl });
+        response.render('dashboard', { user: request.user, counts: { games: gameCount, posts: postCount, reviews: reviewCount, promotions: promotionCount, brokenLinks: brokenLinksCount }, recentItems: { games: recentGames, posts: recentPosts }, page: 'dashboard', title: 'Dashboard', frontendUrl: frontendUrl });
     } catch (error) {
         response.status(500).send('Server Error');
     }
@@ -67,5 +68,30 @@ router.get('/settings', async (request, response) => {
 router.get('/pages', (req, res) => res.render('manage-content', { user: req.user, page: 'pages', title: 'Custom Pages', apiEndpoint: '/api/admin/pages', frontendUrl }));
 router.get('/pages/new', (req, res) => res.render('edit-page', { user: req.user, page: 'pages', title: 'Create New Page', pageData: null, apiEndpoint: '/api/admin/pages', frontendUrl }));
 router.get('/pages/edit/:id', async (req, res) => { try { const pageData = await Page.findById(req.params.id); if (!pageData) return res.status(404).send('Page not found'); res.render('edit-page', { user: req.user, page: 'pages', title: 'Edit Page', pageData, apiEndpoint: `/api/admin/pages/${pageData._id}`, frontendUrl }); } catch (e) { res.status(500).send('Server Error'); } });
+
+//==============================================
+// LINK CHECKER UI ROUTE
+//==============================================
+router.get('/link-checker', async (req, res) => {
+    try {
+        const [results, totalCount, brokenCount] = await Promise.all([
+            LinkCheckResult.find({}).sort({ status: 1, url: 1 }).lean(),
+            LinkCheckResult.countDocuments(),
+            LinkCheckResult.countDocuments({ status: 'broken' })
+        ]);
+        res.render('link-checker', {
+            user: req.user,
+            page: 'link-checker',
+            title: 'Link Checker',
+            results,
+            totalCount,
+            brokenCount,
+            frontendUrl
+        });
+    } catch (e) {
+        console.error('Error rendering link checker:', e);
+        res.status(500).send('Server Error');
+    }
+});
 
 module.exports = router;
