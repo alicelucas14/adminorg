@@ -140,7 +140,12 @@ const settingSchema = new mongoose.Schema({
     googleSearchConsoleVerification: { type: String, default: '' },
     ahrefsVerification: { type: String, default: '9b4a068be0accae70bb69802a875d1f5d6f987bb64e6f428005d97af07a52f2c' },
     customHeaderScripts: { type: String, default: '' },
-    customFooterScripts: { type: String, default: '' }
+    customFooterScripts: { type: String, default: '' },
+    
+    // --- Homepage Popup Banner ---
+    showPopupBanner: { type: Boolean, default: false },
+    popupBannerImageUrl: { type: String, default: '' },
+    popupBannerLink: { type: String, default: '' }
 }, { timestamps: true });
 
 
@@ -173,6 +178,20 @@ const pageSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 
+/**
+ * =============================================================================
+ *  POPUP BANNER SCHEMA (NEW)
+ * =============================================================================
+ */
+const popupBannerSchema = new mongoose.Schema({
+    title: { type: localizedStringSchema, required: true },
+    imageUrl: { type: String, required: true },
+    linkUrl: { type: String, default: '' },
+    isActive: { type: Boolean, default: true, index: true },
+    displayOrder: { type: Number, default: 0, index: true }
+}, { timestamps: true });
+
+
 // Export all models
 const Game = mongoose.models.Game || mongoose.model('Game', gameSchema);
 const BlogPost = mongoose.models.BlogPost || mongoose.model('BlogPost', blogPostSchema);
@@ -180,5 +199,6 @@ const Review = mongoose.models.Review || mongoose.model('Review', reviewSchema);
 const Promotion = mongoose.models.Promotion || mongoose.model('Promotion', promotionSchema);
 const Setting = mongoose.models.Setting || mongoose.model('Setting', settingSchema);
 const Page = mongoose.models.Page || mongoose.model('Page', pageSchema);
+const PopupBanner = mongoose.models.PopupBanner || mongoose.model('PopupBanner', popupBannerSchema);
 
-module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment, Page, LinkCheckResult };
+module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment, Page, LinkCheckResult, PopupBanner };

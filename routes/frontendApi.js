@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Promotion, Setting, Game, BlogPost, Review, Page } = require('../models');
+const { Promotion, Setting, Game, BlogPost, Review, Page, PopupBanner } = require('../models');
 const { requireApiKey } = require('../middleware/apiKeyMiddleware');
 
 // Protect all routes in this file with the API Key middleware.
@@ -241,6 +241,27 @@ router.get('/pages/:slug', async (req, res) => {
         res.json(page);
     } catch (err) {
         res.status(500).json({ message: 'Server error while fetching page.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/popup-banners
+ * @desc    Get all active popup banners.
+ * @access  Private (API Key)
+ */
+router.get('/popup-banners', async (req, res) => {
+    try {
+        const lang = req.query.lang === 'hi' ? 'hi' : 'en';
+        const banners = await PopupBanner.find({ isActive: true }).sort({ displayOrder: 1, createdAt: -1 });
+        const formattedBanners = banners.map(banner => ({
+            _id: banner._id,
+            title: banner.title[lang] || banner.title.en,
+            imageUrl: banner.imageUrl,
+            linkUrl: banner.linkUrl
+        }));
+        res.json(formattedBanners);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while fetching popup banners.' });
     }
 });
 
