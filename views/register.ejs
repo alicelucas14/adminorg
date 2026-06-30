@@ -62,6 +62,12 @@
         <!-- Registration Card -->
         <div class="card p-8">
             <form id="registerForm" class="space-y-4">
+                <!-- Honeypot field for bot protection -->
+                <div style="display: none;" aria-hidden="true">
+                    <label for="website">Website</label>
+                    <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+                </div>
+
                 <div>
                     <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
                     <input type="text" id="username" name="username" required minlength="3"
@@ -119,6 +125,7 @@
             const username = form.username.value;
             const password = form.password.value;
             const confirmPassword = form.confirmPassword.value;
+            const website = form.website.value; // Honeypot value
 
             if (password !== confirmPassword) {
                 errorMessageDiv.textContent = 'Passwords do not match.';
@@ -134,7 +141,7 @@
                 const response = await fetch('/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password }),
+                    body: JSON.stringify({ username, password, website }),
                 });
 
                 const data = await response.json();

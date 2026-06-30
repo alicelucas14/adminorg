@@ -68,7 +68,13 @@ router.post('/login', async (req, res) => {
  * @access  Public
  */
 router.post('/register', async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, website } = req.body;
+
+  // Honeypot check for bots
+  if (website) {
+    console.warn(`Blocked registration attempt from bot using honeypot. Username: ${username}`);
+    return res.status(400).json({ message: 'Registration failed.' });
+  }
 
   // 1. Validation
   if (!username || !password) {
