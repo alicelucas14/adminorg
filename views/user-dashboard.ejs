@@ -1,0 +1,64 @@
+<!-- backend/views/user-dashboard.ejs -->
+<%- include('partials/_header') %>
+<%- include('partials/_sidebar') %>
+
+<!-- Main Dashboard Container -->
+<div class="max-w-4xl mx-auto py-8 px-4">
+    <!-- Welcome Banner with curated gradient and subtle micro-animations -->
+    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary-600 via-primary-700 to-indigo-800 text-white p-8 md:p-12 shadow-xl mb-8 transform transition duration-500 hover:scale-[1.01]">
+        <!-- Decorative background glow -->
+        <div class="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/10 blur-2xl"></div>
+        <div class="absolute -left-10 -bottom-10 w-60 h-60 rounded-full bg-primary-400/20 blur-3xl"></div>
+        
+        <div class="relative z-10">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/20 text-white backdrop-blur-sm mb-4">
+                <i class="ri-user-smile-line mr-1"></i> Member Account
+            </span>
+            <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Welcome, <%= user.username %>!</h2>
+            <p class="text-primary-100 mt-2 text-lg max-w-xl">Your account has been created and is fully active. You are signed in to UU7Stars.</p>
+        </div>
+    </div>
+
+    <!-- Account Details Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-5 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <i class="ri-information-line text-primary-600"></i> Account Information
+            </h3>
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 uppercase tracking-wider">
+                <%= user.role %>
+            </span>
+        </div>
+        
+        <div class="p-6 divide-y divide-gray-100">
+            <!-- Row: Username -->
+            <div class="py-4 grid grid-cols-3 gap-4">
+                <span class="text-sm font-medium text-gray-500">Username</span>
+                <span class="text-sm text-gray-900 col-span-2 font-mono"><%= user.username %></span>
+            </div>
+            
+            <!-- Row: Account Type -->
+            <div class="py-4 grid grid-cols-3 gap-4">
+                <span class="text-sm font-medium text-gray-500">Role Privilege</span>
+                <span class="text-sm text-gray-900 col-span-2">Standard User</span>
+            </div>
+
+            <!-- Row: Member Since -->
+            <div class="py-4 grid grid-cols-3 gap-4">
+                <span class="text-sm font-medium text-gray-500">Created At</span>
+                <span class="text-sm text-gray-900 col-span-2">
+                    <%= new Date(user.createdAt || Date.now()).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' }) %>
+                </span>
+            </div>
+        </div>
+
+        <div class="p-6 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+            <p class="text-xs text-gray-500">If you require elevated administrator permissions, please contact the site owner.</p>
+            <a href="<%= frontendUrl %>" class="btn btn-primary inline-flex items-center gap-1.5 py-2 px-4 shadow-sm text-sm">
+                Go to Homepage <i class="ri-arrow-right-line"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/_footer') %>

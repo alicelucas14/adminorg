@@ -52,4 +52,16 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+const adminOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    if (req.originalUrl.startsWith('/api/')) {
+      return res.status(403).json({ message: 'Forbidden: Admin access required.' });
+    }
+    const adminBase = '/' + (process.env.ADMIN_BASE || 'adminorg');
+    return res.redirect(`${adminBase}/user-dashboard`);
+  }
+};
+
+module.exports = { protect, adminOnly };

@@ -9,7 +9,7 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 
 const connectDB = require('./db');
-const { protect } = require('./middleware/authMiddleware');
+const { protect, adminOnly } = require('./middleware/authMiddleware');
 
 // Route Imports
 const adminUiRoutes = require('./routes/admin/ui');
@@ -25,6 +25,7 @@ const adminBlogCommentRoutes = require('./routes/admin/blog-comments'); // <-- I
 const adminPageRoutes = require('./routes/admin/pages');
 const adminLinkCheckerRoutes = require('./routes/admin/linkChecker');
 const adminPopupBannerRoutes = require('./routes/admin/popup-banners'); // <-- IMPORT popup-banners route
+const adminUserRoutes = require('./routes/admin/users'); // <-- IMPORT user management route
 const frontendApiRoutes = require('./routes/frontendApi');
 const commentFrontendRoutes = require('./routes/frontend/comments');
 const blogCommentFrontendRoutes = require('./routes/frontend/blog-comments'); // <-- IMPORT new frontend route
@@ -52,23 +53,28 @@ app.get(`/${ADMIN_BASE}`, (req, res) => {
   if (req.cookies.token) return res.redirect(`/${ADMIN_BASE}/dashboard`);
   res.render('login');
 });
+app.get(`/${ADMIN_BASE}/register`, (req, res) => {
+  if (req.cookies.token) return res.redirect(`/${ADMIN_BASE}/dashboard`);
+  res.render('register');
+});
 app.use(`/${ADMIN_BASE}`, protect, adminUiRoutes);
 app.use('/admin', (req, res) => res.redirect(`/${ADMIN_BASE}` + req.url)); // Legacy redirect
 
 // --- API Routes ---
 app.use('/auth', authRoutes);
 // Admin APIs
-app.use('/api/admin/games', adminGameRoutes);
-app.use('/api/admin/blog', adminBlogRoutes);
-app.use('/api/admin/reviews', adminReviewRoutes);
-app.use('/api/admin/promotions', adminPromotionRoutes);
-app.use('/api/admin/settings', adminSettingsRoutes);
-app.use('/api/admin/upload', adminUploadRoutes);
-app.use('/api/admin/comments', adminCommentRoutes);
-app.use('/api/admin/blog-comments', adminBlogCommentRoutes); // <-- REGISTER new admin route
-app.use('/api/admin/pages', adminPageRoutes);
-app.use('/api/admin/link-checker', adminLinkCheckerRoutes);
-app.use('/api/admin/popup-banners', adminPopupBannerRoutes); // <-- REGISTER popup-banners admin API
+app.use('/api/admin/games', protect, adminOnly, adminGameRoutes);
+app.use('/api/admin/blog', protect, adminOnly, adminBlogRoutes);
+app.use('/api/admin/reviews', protect, adminOnly, adminReviewRoutes);
+app.use('/api/admin/promotions', protect, adminOnly, adminPromotionRoutes);
+app.use('/api/admin/settings', protect, adminOnly, adminSettingsRoutes);
+app.use('/api/admin/upload', protect, adminOnly, adminUploadRoutes);
+app.use('/api/admin/comments', protect, adminOnly, adminCommentRoutes);
+app.use('/api/admin/blog-comments', protect, adminOnly, adminBlogCommentRoutes); // <-- REGISTER new admin route
+app.use('/api/admin/pages', protect, adminOnly, adminPageRoutes);
+app.use('/api/admin/link-checker', protect, adminOnly, adminLinkCheckerRoutes);
+app.use('/api/admin/popup-banners', protect, adminOnly, adminPopupBannerRoutes); // <-- REGISTER popup-banners admin API
+app.use('/api/admin/users', protect, adminOnly, adminUserRoutes); // <-- REGISTER users admin API
 // Frontend APIs
 app.use('/frontend-api', frontendApiRoutes);
 app.use('/api/frontend/comments', commentFrontendRoutes);

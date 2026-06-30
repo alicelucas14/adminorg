@@ -1,0 +1,166 @@
+<!-- backend/views/register.ejs -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account | UU7Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Link to our global admin stylesheet -->
+    <link rel="stylesheet" href="/css/admin.css">
+
+    <script>
+        // Inject the custom color palette into Tailwind's configuration
+        tailwind.config = {
+          theme: {
+            extend: {
+              fontFamily: {
+                sans: ['Inter', 'sans-serif'],
+              },
+              colors: {
+                primary: {
+                  50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa',
+                  500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a',
+                  950: '#172554'
+                },
+                gray: {
+                    50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8',
+                    500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a',
+                    950: '#020617'
+                }
+              }
+            }
+          }
+        }
+    </script>
+    <style>
+        /* Simple style for loading spinner */
+        .loader {
+            border-top-color: #ffffff;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-md">
+        <!-- Logo Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">UU7Game Platform</h1>
+            <p class="text-gray-500">Create an account to get started</p>
+        </div>
+        
+        <!-- Registration Card -->
+        <div class="card p-8">
+            <form id="registerForm" class="space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                    <input type="text" id="username" name="username" required minlength="3"
+                           class="form-input">
+                    <p class="mt-1 text-xs text-gray-400">At least 3 characters. Lowercase letters and numbers only.</p>
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" id="password" name="password" required minlength="6"
+                           class="form-input">
+                    <p class="mt-1 text-xs text-gray-400">At least 6 characters.</p>
+                </div>
+
+                <div>
+                    <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required
+                           class="form-input">
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" id="registerButton"
+                            class="btn btn-primary w-full flex justify-center py-3">
+                        <span id="buttonText">Create Account</span>
+                        <div id="loader" class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-5 w-5 ml-3 hidden"></div>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Redirect to Login Link -->
+            <div class="mt-6 text-center text-sm text-gray-500">
+                Already have an account? <a href="/admin" class="text-primary-600 hover:text-primary-800 font-semibold hover:underline">Sign In</a>
+            </div>
+
+            <!-- Error Message Display -->
+            <div id="errorMessage" class="mt-4 text-center text-sm text-red-600 font-medium hidden"></div>
+            <!-- Success Message Display -->
+            <div id="successMessage" class="mt-4 text-center text-sm text-green-600 font-medium hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('registerForm');
+        const errorMessageDiv = document.getElementById('errorMessage');
+        const successMessageDiv = document.getElementById('successMessage');
+        const registerButton = document.getElementById('registerButton');
+        const buttonText = document.getElementById('buttonText');
+        const loader = document.getElementById('loader');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorMessageDiv.classList.add('hidden');
+            successMessageDiv.classList.add('hidden');
+
+            const username = form.username.value;
+            const password = form.password.value;
+            const confirmPassword = form.confirmPassword.value;
+
+            if (password !== confirmPassword) {
+                errorMessageDiv.textContent = 'Passwords do not match.';
+                errorMessageDiv.classList.remove('hidden');
+                return;
+            }
+
+            registerButton.disabled = true;
+            buttonText.textContent = 'Creating account...';
+            loader.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Registration failed.');
+                }
+
+                successMessageDiv.textContent = 'Account created successfully! Redirecting...';
+                successMessageDiv.classList.remove('hidden');
+                
+                // Save JWT to cookie
+                document.cookie = `token=${data.token}; path=/; max-age=86400;`;
+                
+                setTimeout(() => {
+                    window.location.href = '/admin/user-dashboard';
+                }, 1000);
+
+            } catch (error) {
+                errorMessageDiv.textContent = error.message;
+                errorMessageDiv.classList.remove('hidden');
+                registerButton.disabled = false;
+                buttonText.textContent = 'Create Account';
+                loader.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

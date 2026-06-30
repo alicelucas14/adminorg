@@ -49,7 +49,8 @@ const createAdminUser = async () => {
         // Create a new user instance. The pre-save hook in the model will handle hashing.
         const newUser = new User({
             username: username.toLowerCase(),
-            password: password
+            password: password,
+            role: 'admin'
         });
 
         // Save the user to the database

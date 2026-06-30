@@ -31,13 +31,10 @@ const seedUsers = async () => {
                 continue;
             }
 
-            // Hash the password before saving
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(userData.password, salt);
-
             await User.create({
                 username: userData.username,
-                password: hashedPassword
+                password: userData.password,
+                role: 'admin'
             });
 
             console.log(`Successfully created user: ${userData.username}`);

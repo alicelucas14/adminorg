@@ -4,8 +4,17 @@
 const express = require('express');
 const router = express.Router();
 const { Game, BlogPost, Review, Promotion, Setting, Page, LinkCheckResult, PopupBanner } = require('../../models');
+const { adminOnly } = require('../../middleware/authMiddleware');
 
 const frontendUrl = process.env.FRONTEND_URL;
+
+// --- User Dashboard Route (Accessible to all authenticated users) ---
+router.get('/user-dashboard', (req, res) => {
+    res.render('user-dashboard', { user: req.user, page: 'user-dashboard', title: 'User Dashboard', frontendUrl });
+});
+
+// --- Admin Only Restriction for subsequent routes ---
+router.use(adminOnly);
 
 // --- Dashboard and other routes are unchanged ---
 router.get('/dashboard', async (request, response) => {
@@ -105,6 +114,17 @@ router.get('/popup-banners/edit/:id', async (req, res) => {
     } catch (e) {
         res.status(500).send('Server Error');
     }
+});
+
+// --- USER MANAGEMENT UI ROUTE ---
+router.get('/users', (req, res) => {
+    res.render('users', { 
+        user: req.user, 
+        page: 'users', 
+        title: 'User Management', 
+        apiEndpoint: '/api/admin/users', 
+        frontendUrl 
+    });
 });
 
 module.exports = router;
