@@ -11,7 +11,7 @@ const User = require('./models/User'); // CORRECTED PATH
  */
 const newUserCredentials = {
     username: 'uu7',
-    password: 'Tech1122@',
+    password: 'Tech1122@@',
     role: 'admin'
 };
 // -------------------------------------------------------------------

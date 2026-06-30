@@ -8,7 +8,7 @@ const MONGO_URI = process.env.MONGO_URI;
 const usersToSeed = [
     {
         username: 'uu7',
-        password: 'Tech1122@'
+        password: 'Tech1122@@'
     }
     // You can add more users here in the future
 ];
