@@ -1,8 +1,7 @@
 // scripts/update-password.js
 // --- SCRIPT TO UPDATE PASSWORD FOR AN EXISTING USER ---
 
-const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+require('../load-env');
 
 const mongoose = require('mongoose');
 const connectDB = require('../db');

@@ -1,5 +1,4 @@
-// backend/seed-final-batch.js
-require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
+require('./load-env');
 const mongoose = require('mongoose');
 const { BlogPost } = require('./models'); // Adjust path if your models.js is elsewhere
 

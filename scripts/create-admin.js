@@ -1,8 +1,7 @@
 // backend/scripts/create-admin.js
 // --- COMMAND-LINE SCRIPT TO CREATE AN ADMIN USER ---
 
-const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+require('../load-env');
 
 const mongoose = require('mongoose');
 const readline = require('readline');

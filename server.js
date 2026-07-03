@@ -1,7 +1,7 @@
 // backend/server.js
 // --- UPDATED to register the new admin and frontend blog comment routes ---
 
-require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
+require('./load-env');
 
 const express = require('express');
 const cors = require('cors');

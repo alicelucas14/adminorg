@@ -2,7 +2,7 @@
 // --- CORRECTED & FINAL DATABASE SEEDING SCRIPT ---
 
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+require('../load-env');
 
 const fs = require('fs');
 const mongoose = require('mongoose');
