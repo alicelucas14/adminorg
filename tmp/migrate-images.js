@@ -18,41 +18,30 @@ connectDB().then(async () => {
   // Step 1: Backup and Migrate
   for (let col of collections) {
     const colName = col.collectionName;
+    const docs = await col.find({}).toArray();
     
-    // Find matching documents
-    const query = {
-      $or: [
-        { image: { $regex: 'admin\\.uu7stars\\.com' } },
-        { imageUrl: { $regex: 'admin\\.uu7stars\\.com' } },
-        { logoUrl: { $regex: 'admin\\.uu7stars\\.com' } },
-        { qrCodeImageUrl: { $regex: 'admin\\.uu7stars\\.com' } },
-        { apkDownloadLink: { $regex: 'admin\\.uu7stars\\.com' } },
-        { openGraphImage: { $regex: 'admin\\.uu7stars\\.com' } }
-      ]
-    };
+    const matchingDocs = [];
     
-    const docs = await col.find(query).toArray();
-    
-    if (docs.length > 0) {
-      console.log(`Found ${docs.length} matching documents in ${colName} to migrate.`);
-      backupData[colName] = docs;
+    for (let doc of docs) {
+      const updateFields = {};
+      const fieldsToCheck = ['image', 'imageUrl', 'logoUrl', 'qrCodeImageUrl', 'apkDownloadLink', 'openGraphImage'];
       
-      // Perform update one by one
-      for (let doc of docs) {
-        const updateFields = {};
-        
-        const fieldsToCheck = ['image', 'imageUrl', 'logoUrl', 'qrCodeImageUrl', 'apkDownloadLink', 'openGraphImage'];
-        fieldsToCheck.forEach(field => {
-          if (doc[field] && typeof doc[field] === 'string' && doc[field].includes(oldDomain)) {
-            updateFields[field] = doc[field].replace(oldDomain, newDomain);
-          }
-        });
-        
-        if (Object.keys(updateFields).length > 0) {
-          await col.updateOne({ _id: doc._id }, { $set: updateFields });
-          console.log(` - Updated doc ${doc._id} in ${colName}:`, updateFields);
+      fieldsToCheck.forEach(field => {
+        if (doc[field] && typeof doc[field] === 'string' && doc[field].includes(oldDomain)) {
+          updateFields[field] = doc[field].replace(oldDomain, newDomain);
         }
+      });
+      
+      if (Object.keys(updateFields).length > 0) {
+        matchingDocs.push(doc);
+        await col.updateOne({ _id: doc._id }, { $set: updateFields });
+        console.log(` - Updated doc ${doc._id} in ${colName}:`, updateFields);
       }
+    }
+    
+    if (matchingDocs.length > 0) {
+      console.log(`Found and migrated ${matchingDocs.length} documents in ${colName}.`);
+      backupData[colName] = matchingDocs;
     }
   }
   
