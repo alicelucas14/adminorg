@@ -7,21 +7,15 @@ connectDB().then(async () => {
   const collections = await mongoose.connection.db.collections();
   for (let col of collections) {
     const colName = col.collectionName;
-    const docs = await col.find({
-      $or: [
-        { image: /admin\.uu7stars\.com/ },
-        { imageUrl: /admin\.uu7stars\.com/ },
-        { logoUrl: /admin\.uu7stars\.com/ },
-        { qrCodeImageUrl: /admin\.uu7stars\.com/ },
-        { apkDownloadLink: /admin\.uu7stars\.com/ },
-        { openGraphImage: /admin\.uu7stars\.com/ }
-      ]
-    }).toArray();
-    
-    if (docs.length > 0) {
-      console.log(`=== Collection: ${colName} ===`);
-      docs.forEach(d => {
-        console.log(JSON.stringify(d, null, 2));
+    const count = await col.countDocuments({});
+    console.log(`Collection: ${colName}, Total Documents: ${count}`);
+    if (count > 0) {
+      const firstDocs = await col.find({}).limit(3).toArray();
+      console.log(`First ${firstDocs.length} documents:`);
+      firstDocs.forEach(d => {
+        console.log(` - ID: ${d._id}, Title: ${d.title?.en || d.name?.en || d.key || 'N/A'}`);
+        console.log(`   image: ${d.image || d.imageUrl || 'N/A'}`);
+        console.log(`   logoUrl: ${d.logoUrl || 'N/A'}`);
       });
     }
   }
