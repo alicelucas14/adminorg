@@ -22,12 +22,12 @@ connectDB().then(async () => {
     // Find matching documents
     const query = {
       $or: [
-        { image: new RegExp(oldDomain) },
-        { imageUrl: new RegExp(oldDomain) },
-        { logoUrl: new RegExp(oldDomain) },
-        { qrCodeImageUrl: new RegExp(oldDomain) },
-        { apkDownloadLink: new RegExp(oldDomain) },
-        { openGraphImage: new RegExp(oldDomain) }
+        { image: { $regex: 'admin\\.uu7stars\\.com' } },
+        { imageUrl: { $regex: 'admin\\.uu7stars\\.com' } },
+        { logoUrl: { $regex: 'admin\\.uu7stars\\.com' } },
+        { qrCodeImageUrl: { $regex: 'admin\\.uu7stars\\.com' } },
+        { apkDownloadLink: { $regex: 'admin\\.uu7stars\\.com' } },
+        { openGraphImage: { $regex: 'admin\\.uu7stars\\.com' } }
       ]
     };
     
