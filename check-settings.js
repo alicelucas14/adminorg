@@ -1,6 +1,6 @@
 // ===== backend/check-settings.js =====
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
 const connectDB = require('./db');
 const { Setting } = require('./models');
 

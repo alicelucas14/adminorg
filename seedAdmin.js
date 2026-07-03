@@ -1,5 +1,5 @@
 // seedAdmin.js
-require('dotenv').config({ path: '.env' }); // Look for .env in the parent (root) directory
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') }); // Look for .env in the parent (root) directory
 const mongoose = require('mongoose');
 const User = require('./models/User'); // CORRECTED PATH
 
