@@ -71,10 +71,10 @@ router.post('/', protect, (req, res) => {
         }
         
         // --- NEW: Construct the absolute URL ---
-        const backendUrl = process.env.BACKEND_URL;
+        let backendUrl = process.env.BACKEND_URL;
         if (!backendUrl) {
-            console.error('CRITICAL: BACKEND_URL environment variable is not set!');
-            return res.status(500).json({ message: 'Server configuration error: Missing BACKEND_URL.' });
+            console.warn('WARNING: BACKEND_URL environment variable is not set. Falling back to request headers.');
+            backendUrl = `${req.protocol}://${req.get('host')}`;
         }
         const relativePath = `/uploads/${req.file.filename}`;
         const absolutePath = new URL(relativePath, backendUrl).href;
