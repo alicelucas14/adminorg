@@ -16,6 +16,14 @@ const localizedStringSchema = new mongoose.Schema({
 }, { _id: false });
 
 /**
+ * Defines an optional schema for localized text (allows empty strings).
+ */
+const optionalLocalizedStringSchema = new mongoose.Schema({
+    en: { type: String, trim: true, default: '' },
+    hi: { type: String, trim: true, default: '' }
+}, { _id: false });
+
+/**
  * =============================================================================
  *  GAME SCHEMA (No changes needed)
  * =============================================================================
@@ -45,17 +53,17 @@ const blogPostSchema = new mongoose.Schema({
     body: { type: localizedStringSchema, required: true },
 
     // --- SEO FIELDS ---
-    metaTitle: { type: localizedStringSchema, required: false },
-    metaDescription: { type: localizedStringSchema, required: false },
+    metaTitle: { type: optionalLocalizedStringSchema, required: false },
+    metaDescription: { type: optionalLocalizedStringSchema, required: false },
     focusKeyword: { type: String, trim: true, default: '' },
     canonicalUrl: { type: String, trim: true, default: '' },
     robotsIndex: { type: Boolean, default: true },
     robotsFollow: { type: Boolean, default: true },
-    openGraphTitle: { type: localizedStringSchema, required: false },
-    openGraphDescription: { type: localizedStringSchema, required: false },
+    openGraphTitle: { type: optionalLocalizedStringSchema, required: false },
+    openGraphDescription: { type: optionalLocalizedStringSchema, required: false },
     openGraphImage: { type: String, trim: true, default: '' },
-    twitterTitle: { type: localizedStringSchema, required: false },
-    twitterDescription: { type: localizedStringSchema, required: false },
+    twitterTitle: { type: optionalLocalizedStringSchema, required: false },
+    twitterDescription: { type: optionalLocalizedStringSchema, required: false },
     // --- END SEO FIELDS ---
 
     author: { type: String, required: true, default: 'Starsuu7 Expert' },
@@ -80,8 +88,8 @@ const reviewSchema = new mongoose.Schema({
     body: { type: localizedStringSchema, required: true },
 
     // --- NEW SEO FIELDS ---
-    metaTitle: { type: localizedStringSchema, required: false },
-    metaDescription: { type: localizedStringSchema, required: false },
+    metaTitle: { type: optionalLocalizedStringSchema, required: false },
+    metaDescription: { type: optionalLocalizedStringSchema, required: false },
     // --- END NEW FIELDS ---
     
     gameName: { type: String, required: true, trim: true },
@@ -103,11 +111,11 @@ const reviewSchema = new mongoose.Schema({
 const promotionSchema = new mongoose.Schema({
     slug: { type: String, required: true, unique: true, trim: true, lowercase: true },
     title: { type: localizedStringSchema, required: true },
-    subtitle: { type: localizedStringSchema, required: false },
+    subtitle: { type: optionalLocalizedStringSchema, required: false },
     description: { type: localizedStringSchema, required: true },
     details: { en: [{ type: String }], hi: [{ type: String }] },
-    ctaText: { type: localizedStringSchema, required: false },
-    badgeText: { type: localizedStringSchema, required: false },
+    ctaText: { type: optionalLocalizedStringSchema, required: false },
+    badgeText: { type: optionalLocalizedStringSchema, required: false },
     imageUrl: { type: String, required: true },
     ctaLink: { type: String, default: '#' },
     badgeColor: { type: String, default: 'bg-brand-orange-gold text-black' },
@@ -160,17 +168,17 @@ const pageSchema = new mongoose.Schema({
     body: { type: localizedStringSchema, required: true },
 
     // --- SEO FIELDS ---
-    metaTitle: { type: localizedStringSchema, required: false },
-    metaDescription: { type: localizedStringSchema, required: false },
+    metaTitle: { type: optionalLocalizedStringSchema, required: false },
+    metaDescription: { type: optionalLocalizedStringSchema, required: false },
     focusKeyword: { type: String, trim: true, default: '' },
     canonicalUrl: { type: String, trim: true, default: '' },
     robotsIndex: { type: Boolean, default: true },
     robotsFollow: { type: Boolean, default: true },
-    openGraphTitle: { type: localizedStringSchema, required: false },
-    openGraphDescription: { type: localizedStringSchema, required: false },
+    openGraphTitle: { type: optionalLocalizedStringSchema, required: false },
+    openGraphDescription: { type: optionalLocalizedStringSchema, required: false },
     openGraphImage: { type: String, trim: true, default: '' },
-    twitterTitle: { type: localizedStringSchema, required: false },
-    twitterDescription: { type: localizedStringSchema, required: false },
+    twitterTitle: { type: optionalLocalizedStringSchema, required: false },
+    twitterDescription: { type: optionalLocalizedStringSchema, required: false },
     // --- END SEO FIELDS ---
 
     isPublished: { type: Boolean, default: true, index: true },
