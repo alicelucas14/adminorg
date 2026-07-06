@@ -123,6 +123,7 @@
             const status = item.isPublished ?? item.isActive ?? true;
             const updatedDate = new Date(item.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
             const imageUrl = item.image || item.imageUrl || 'https://via.placeholder.com/100x60';
+            const subtitle = item.slug || item.gameId || (item.linkUrl ? `Link: ${item.linkUrl}` : `ID: ${item._id}`);
 
             let aiCommentsButton = '';
             if (pageType === 'reviews') {
@@ -134,7 +135,7 @@
             row.innerHTML = `
                 <td class="p-4"><input type="checkbox" class="item-checkbox form-checkbox" data-id="${item._id}"></td>
                 <td class="px-6 py-4"><img src="${imageUrl}" alt="Image for ${title}" class="w-20 h-12 object-cover rounded-md bg-gray-100"></td>
-                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${title}</div><div class="text-xs text-gray-500">${item.slug || item.gameId}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${title}</div><div class="text-xs text-gray-500">${subtitle}</div></td>
                 <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${status ? 'Published' : 'Draft'}</span></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${updatedDate}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
