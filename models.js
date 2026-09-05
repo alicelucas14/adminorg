@@ -37,8 +37,7 @@ const gameSchema = new mongoose.Schema({
     isNew: { type: Boolean, default: false },
     isHot: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true, index: true },
-    schemaMarkup: { type: String, default: '' }
-}, { timestamps: true });
+}, { timestamps: true, suppressReservedKeysWarning: true });
 
 
 /**

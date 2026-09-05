@@ -9,12 +9,7 @@ const mongoose = require('mongoose');
  */
 const connectDB = async () => {
   try {
-    // Attempt to connect to the database.
-    // The connection options are recommended by Mongoose for modern usage.
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(process.env.MONGO_URI);
 
     console.log('MongoDB Connected Successfully.');
 
