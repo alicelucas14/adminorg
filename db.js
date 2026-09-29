@@ -7,17 +7,17 @@ const mongoose = require('mongoose');
  * Asynchronously connects to the MongoDB database using the connection string
  * from the environment variables.
  */
-const connectDB = async () => {
+const connectDB = async (options = {}) => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(process.env.MONGO_URI, options);
 
     console.log('MongoDB Connected Successfully.');
 
   } catch (error) {
-    // If the connection fails, log the error and exit the application.
-    // This is important because the app cannot run without a database connection.
+    // Log and let the caller decide what to do — the HTTP server can still
+    // serve /healthz and static assets even while Mongo is unreachable, and
+    // mongoose will keep retrying the connection in the background.
     console.error('MongoDB Connection Error:', error.message);
-    process.exit(1);
   }
 };
 

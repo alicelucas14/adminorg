@@ -3,15 +3,25 @@
 
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const router = express.Router();
+
+// Slow down brute-force / credential-stuffing attempts against auth endpoints.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many attempts. Please try again later.' },
+});
 
 /**
  * @route   POST /auth/login
  * @desc    Authenticate admin user & get token
  * @access  Public
  */
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
 
   // 1. Basic Validation: Check if username and password were provided
@@ -67,7 +77,7 @@ router.post('/login', async (req, res) => {
  * @desc    Register a new user
  * @access  Public
  */
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   const { username, password, website } = req.body;
 
   // Honeypot check for bots

@@ -6,6 +6,7 @@ const router = express.Router();
 const { OpenAI } = require('openai'); // <-- IMPORT OpenAI
 const { GoogleGenerativeAI } = require('@google/generative-ai'); // <-- IMPORT Gemini
 const { BlogPost } = require('../../models');
+const { escapeRegex } = require('../../lib/escapeRegex');
 const { protect } = require('../../middleware/authMiddleware');
 
 router.use(protect);
@@ -106,7 +107,7 @@ router.get('/', async (req, res) => {
         const searchQuery = req.query.search;
         const filter = {};
         if (searchQuery) {
-            const regex = new RegExp(searchQuery, 'i');
+            const regex = new RegExp(escapeRegex(searchQuery), 'i');
             filter.$or = [ { 'title.en': regex }, { 'title.hi': regex }, { slug: regex } ];
         }
         const [posts, totalItems] = await Promise.all([

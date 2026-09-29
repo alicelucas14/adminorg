@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 // fetch is no longer needed
 const { Promotion } = require('../../models');
+const { escapeRegex } = require('../../lib/escapeRegex');
 const { protect } = require('../../middleware/authMiddleware');
 
 // Protect all routes in this file
@@ -26,7 +27,7 @@ router.get('/', async (request, response) => {
 
         const filter = {};
         if (searchQuery) {
-            const regex = new RegExp(searchQuery, 'i');
+            const regex = new RegExp(escapeRegex(searchQuery), 'i');
             filter.$or = [
                 { 'title.en': regex },
                 { 'title.hi': regex },

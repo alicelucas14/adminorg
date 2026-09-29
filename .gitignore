@@ -5,3 +5,5 @@ mongodb-backup.zip
 export-db.js
 import-db.js
 .DS_Store
+*.log
+extracted_*.txt

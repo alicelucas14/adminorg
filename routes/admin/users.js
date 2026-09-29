@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../../models/User');
+const { escapeRegex } = require('../../lib/escapeRegex');
 
 /**
  * @route   GET /api/admin/users
@@ -19,7 +20,7 @@ router.get('/', async (req, res) => {
 
         const filter = {};
         if (searchQuery) {
-            filter.username = new RegExp(searchQuery, 'i');
+            filter.username = new RegExp(escapeRegex(searchQuery), 'i');
         }
 
         const [users, totalItems] = await Promise.all([

@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { Game, Review } = require('../../models'); // <-- IMPORT Review model
+const { escapeRegex } = require('../../lib/escapeRegex');
 const { protect } = require('../../middleware/authMiddleware');
 
 router.use(protect);
@@ -46,7 +47,7 @@ router.get('/', async (req, res) => {
 
         const filter = {};
         if (searchQuery) {
-            const regex = new RegExp(searchQuery, 'i');
+            const regex = new RegExp(escapeRegex(searchQuery), 'i');
             filter.$or = [
                 { 'name.en': regex },
                 { 'name.hi': regex },

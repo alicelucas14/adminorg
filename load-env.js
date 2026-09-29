@@ -10,10 +10,10 @@ const htaccessPath = path.resolve(__dirname, '.htaccess');
 
 // 1. Try to load variables from .env
 if (fs.existsSync(envPath)) {
-    require('dotenv').config({ path: envPath });
+    require('dotenv').config({ path: envPath, quiet: true });
 } else {
     // If no .env is present, still call dotenv.config() to load standard process envs
-    require('dotenv').config();
+    require('dotenv').config({ quiet: true });
 }
 
 // 2. Parse .htaccess as a fallback (specifically for LiteSpeed/Passenger environment)
