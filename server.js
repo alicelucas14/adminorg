@@ -41,6 +41,11 @@ app.locals.adminBase = '/' + ADMIN_BASE;
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(cors());
+// Admin host must never be indexed (robots.txt is crawl control, not security)
+app.use((_req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
