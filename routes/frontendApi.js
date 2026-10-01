@@ -9,6 +9,25 @@ const { requireApiKey } = require('../middleware/apiKeyMiddleware');
 // Protect all routes in this file with the API Key middleware.
 router.use(requireApiKey);
 
+// --- Translation helpers ---------------------------------------------------
+const hasText = (v) => typeof v === 'string' && v.trim().length > 0;
+
+// Languages in which every required field has real text (empty placeholders don't count).
+const availableLangs = (doc, fields) =>
+    ['en', 'hi'].filter((l) => fields.every((field) => hasText(doc[field] && doc[field][l])));
+
+// Shape a full (lean) document for one language: drop the other language's text,
+// the internal slug history, and report which languages actually exist.
+function forLang(doc, lang, requiredFields, strippedFields) {
+    const other = lang === 'hi' ? 'en' : 'hi';
+    const out = { ...doc, availableLangs: availableLangs(doc, requiredFields) };
+    for (const field of strippedFields) {
+        if (out[field]) { out[field] = { ...out[field] }; delete out[field][other]; }
+    }
+    delete out.slugHistory;
+    return out;
+}
+
 /**
  * @route   GET /frontend-api/settings
  * @desc    Get the global site settings.
@@ -50,6 +69,8 @@ router.get('/promotions', async (request, response) => {
                 imageUrl: promo.imageUrl,
                 ctaLink: promo.ctaLink,
                 badgeColor: promo.badgeColor,
+                updatedAt: promo.updatedAt,
+                translated: hasText(promo.title && promo.title[langKey]) && hasText(promo.description && promo.description[langKey]),
             };
         });
             
@@ -103,6 +124,8 @@ router.get('/blog', async (req, res) => {
             image: post.image,
             tags: post.tags,
             publishedAt: post.publishedAt,
+            updatedAt: post.updatedAt,
+            translated: hasText(post.title && post.title[lang]) && hasText(post.body && post.body[lang]),
             focusKeyword: post.focusKeyword,
             canonicalUrl: post.canonicalUrl,
             robotsIndex: post.robotsIndex,
@@ -126,17 +149,12 @@ router.get('/blog', async (req, res) => {
  */
 router.get('/blog/:slug', async (req, res) => {
     try {
-        const lang = req.query.lang || 'en';
-        const post = await BlogPost.findOne({ slug: req.params.slug, isPublished: true })
-            .select({
-                [`title.${lang === 'en' ? 'hi' : 'en'}`]: 0,
-                [`excerpt.${lang === 'en' ? 'hi' : 'en'}`]: 0,
-                [`body.${lang === 'en' ? 'hi' : 'en'}`]: 0,
-            });
+        const lang = req.query.lang === 'hi' ? 'hi' : 'en';
+        const post = await BlogPost.findOne({ slug: req.params.slug, isPublished: true }).lean();
         if (!post) {
             return res.status(404).json({ message: 'Blog post not found.' });
         }
-        res.json(post);
+        res.json(forLang(post, lang, ['title', 'body'], ['title', 'excerpt', 'body']));
     } catch (err) {
         res.status(500).json({ message: 'Server error while fetching blog post.' });
     }
@@ -154,7 +172,7 @@ router.get('/reviews', async (req, res) => {
         // --- THE FIX STARTS HERE ---
         // 1. Fetch the documents, selecting the full title and excerpt objects.
         const reviewsFromDb = await Review.find({ isPublished: true })
-            .select('slug title excerpt gameName rating image')
+            .select('slug title excerpt body gameName rating image updatedAt')
             .sort({ createdAt: -1 })
             .lean(); // Use .lean() for better performance as we don't need Mongoose methods.
 
@@ -167,6 +185,8 @@ router.get('/reviews', async (req, res) => {
             gameName: review.gameName,
             rating: review.rating,
             image: review.image,
+            updatedAt: review.updatedAt,
+            translated: hasText(review.title && review.title[lang]) && hasText(review.body && review.body[lang]),
         }));
         // --- THE FIX ENDS HERE ---
 
@@ -183,19 +203,12 @@ router.get('/reviews', async (req, res) => {
  */
 router.get('/reviews/:slug', async (req, res) => {
     try {
-        const lang = req.query.lang || 'en';
-        const review = await Review.findOne({ slug: req.params.slug, isPublished: true })
-            .select({
-                [`title.${lang === 'en' ? 'hi' : 'en'}`]: 0,
-                [`excerpt.${lang === 'en' ? 'hi' : 'en'}`]: 0,
-                [`body.${lang === 'en' ? 'hi' : 'en'}`]: 0,
-                [`pros.${lang === 'en' ? 'hi' : 'en'}`]: 0,
-                [`cons.${lang === 'en' ? 'hi' : 'en'}`]: 0,
-            });
+        const lang = req.query.lang === 'hi' ? 'hi' : 'en';
+        const review = await Review.findOne({ slug: req.params.slug, isPublished: true }).lean();
         if (!review) {
             return res.status(404).json({ message: 'Review not found.' });
         }
-        res.json(review);
+        res.json(forLang(review, lang, ['title', 'body'], ['title', 'excerpt', 'body', 'pros', 'cons']));
     } catch (err) {
         res.status(500).json({ message: 'Server error while fetching review.' });
     }
@@ -214,7 +227,9 @@ router.get('/pages', async (req, res) => {
             _id: p._id,
             slug: p.slug,
             title: p.title ? p.title[lang === 'hi' ? 'hi' : 'en'] : '',
-            updatedAt: p.updatedAt
+            updatedAt: p.updatedAt,
+            robotsIndex: p.robotsIndex,
+            translated: hasText(p.title && p.title[lang === 'hi' ? 'hi' : 'en']) && hasText(p.body && p.body[lang === 'hi' ? 'hi' : 'en']),
         }));
         res.json(formattedPages);
     } catch (err) {
@@ -229,16 +244,12 @@ router.get('/pages', async (req, res) => {
  */
 router.get('/pages/:slug', async (req, res) => {
     try {
-        const lang = req.query.lang || 'en';
-        const page = await Page.findOne({ slug: req.params.slug, isPublished: true })
-            .select({
-                [`title.${lang === 'en' ? 'hi' : 'en'}`]: 0,
-                [`body.${lang === 'en' ? 'hi' : 'en'}`]: 0,
-            });
+        const lang = req.query.lang === 'hi' ? 'hi' : 'en';
+        const page = await Page.findOne({ slug: req.params.slug, isPublished: true }).lean();
         if (!page) {
             return res.status(404).json({ message: 'Page not found.' });
         }
-        res.json(page);
+        res.json(forLang(page, lang, ['title', 'body'], ['title', 'body']));
     } catch (err) {
         res.status(500).json({ message: 'Server error while fetching page.' });
     }
@@ -262,6 +273,27 @@ router.get('/popup-banners', async (req, res) => {
         res.json(formattedBanners);
     } catch (err) {
         res.status(500).json({ message: 'Server error while fetching popup banners.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/slug-redirect/:type/:slug
+ * @desc    Resolve a retired slug to its current slug (for 301 redirects).
+ *          type: blog | reviews | promotions | pages. 404 if the slug was never used.
+ * @access  Private (API Key)
+ */
+const REDIRECT_MODELS = { blog: BlogPost, reviews: Review, promotions: Promotion, pages: Page };
+router.get('/slug-redirect/:type/:slug', async (req, res) => {
+    try {
+        const Model = REDIRECT_MODELS[req.params.type];
+        if (!Model) return res.status(404).json({ message: 'Unknown content type.' });
+        const doc = await Model.findOne({ slugHistory: String(req.params.slug).trim().toLowerCase(), isPublished: true })
+            .select('slug')
+            .lean();
+        if (!doc) return res.status(404).json({ message: 'No redirect for this slug.' });
+        res.json({ slug: doc.slug });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while resolving slug redirect.' });
     }
 });
 

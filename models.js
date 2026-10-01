@@ -6,6 +6,7 @@ const User = require('./models/User');
 const Comment = require('./models/Comment'); // <-- IMPORT the Comment model
 const BlogComment = require('./models/BlogComment');
 const LinkCheckResult = require('./models/LinkCheckResult');
+const slugHistoryPlugin = require('./lib/slugHistory');
 
 /**
  * Defines a schema for storing text in multiple languages.
@@ -198,6 +199,9 @@ const popupBannerSchema = new mongoose.Schema({
     displayOrder: { type: Number, default: 0, index: true }
 }, { timestamps: true });
 
+
+// Remember old slugs so renamed URLs can 301 to the new one
+[blogPostSchema, reviewSchema, promotionSchema, pageSchema].forEach((schema) => schema.plugin(slugHistoryPlugin));
 
 // Export all models
 const Game = mongoose.models.Game || mongoose.model('Game', gameSchema);
