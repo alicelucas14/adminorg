@@ -33,7 +33,7 @@ const isPlaceholderLang = (doc, lang, fields) =>
 const bodyFlags = {
     bodyHasEn: { $gt: [{ $strLenCP: { $trim: { input: { $ifNull: ['$body.en', ''] } } } }, 0] },
     bodyHasHi: { $gt: [{ $strLenCP: { $trim: { input: { $ifNull: ['$body.hi', ''] } } } }, 0] },
-    bodyHiPlaceholder: { $regexMatch: { input: { $ifNull: ['$body.hi', ''] }, regex: '\\[HI\\]' } },
+    bodyHiPlaceholder: { $gte: [{ $indexOfCP: [{ $ifNull: ['$body.hi', ''] }, '[HI]'] }, 0] },
 };
 const bodyHasText = (doc, lang) => (lang === 'hi' ? doc.bodyHasHi : doc.bodyHasEn) === true;
 const bodyIsPlaceholder = (doc, lang) => lang === 'hi' && doc.bodyHiPlaceholder === true;
