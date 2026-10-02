@@ -27,6 +27,17 @@ const hasPlaceholder = (value) => {
 const isPlaceholderLang = (doc, lang, fields) =>
     lang === 'hi' && fields.some((field) => hasPlaceholder(doc[field] && doc[field][lang]));
 
+// Whole-collection lists never need the (large) bodies themselves, only whether each body has text
+// and whether the Hindi body is an "[HI]" placeholder. Let MongoDB work that out instead of shipping
+// every full body to Node and building a document from it (that made /blog take seconds).
+const bodyFlags = {
+    bodyHasEn: { $gt: [{ $strLenCP: { $trim: { input: { $ifNull: ['$body.en', ''] } } } }, 0] },
+    bodyHasHi: { $gt: [{ $strLenCP: { $trim: { input: { $ifNull: ['$body.hi', ''] } } } }, 0] },
+    bodyHiPlaceholder: { $regexMatch: { input: { $ifNull: ['$body.hi', ''] }, regex: '\\[HI\\]' } },
+};
+const bodyHasText = (doc, lang) => (lang === 'hi' ? doc.bodyHasHi : doc.bodyHasEn) === true;
+const bodyIsPlaceholder = (doc, lang) => lang === 'hi' && doc.bodyHiPlaceholder === true;
+
 // Languages that are both real and worth indexing (no placeholder text).
 const indexableLangs = (doc, requiredFields, localizedFields) =>
     availableLangs(doc, requiredFields).filter((l) => !isPlaceholderLang(doc, l, localizedFields));
@@ -134,7 +145,17 @@ router.get('/games', async (req, res) => {
 router.get('/blog', async (req, res) => {
     try {
         const lang = req.query.lang === 'hi' ? 'hi' : 'en';
-        const postsFromDb = await BlogPost.find({ isPublished: true }).sort({ publishedAt: -1 });
+        const postsFromDb = await BlogPost.aggregate([
+            { $match: { isPublished: true } },
+            { $project: {
+                slug: 1, title: 1, excerpt: 1, author: 1, image: 1, tags: 1, publishedAt: 1, updatedAt: 1,
+                focusKeyword: 1, canonicalUrl: 1, robotsIndex: 1, robotsFollow: 1,
+                openGraphTitle: 1, openGraphDescription: 1, openGraphImage: 1, twitterTitle: 1, twitterDescription: 1,
+                ...bodyFlags,
+            } },
+            { $sort: { publishedAt: -1 } },
+        ]);
+        // Aggregation returns raw documents, so re-apply the schema defaults a Mongoose document would have had.
         const formattedPosts = postsFromDb.map(post => ({
             _id: post._id,
             slug: post.slug,
@@ -142,18 +163,18 @@ router.get('/blog', async (req, res) => {
             excerpt: post.excerpt[lang],
             author: post.author,
             image: post.image,
-            tags: post.tags,
+            tags: post.tags || [],
             publishedAt: post.publishedAt,
             updatedAt: post.updatedAt,
-            translated: hasText(post.title && post.title[lang]) && hasText(post.body && post.body[lang])
-                && !isPlaceholderLang(post, lang, ['title', 'excerpt', 'body']),
-            focusKeyword: post.focusKeyword,
-            canonicalUrl: post.canonicalUrl,
-            robotsIndex: post.robotsIndex,
-            robotsFollow: post.robotsFollow,
+            translated: hasText(post.title && post.title[lang]) && bodyHasText(post, lang)
+                && !isPlaceholderLang(post, lang, ['title', 'excerpt']) && !bodyIsPlaceholder(post, lang),
+            focusKeyword: post.focusKeyword ?? '',
+            canonicalUrl: post.canonicalUrl ?? '',
+            robotsIndex: post.robotsIndex ?? true,
+            robotsFollow: post.robotsFollow ?? true,
             openGraphTitle: post.openGraphTitle,
             openGraphDescription: post.openGraphDescription,
-            openGraphImage: post.openGraphImage,
+            openGraphImage: post.openGraphImage ?? '',
             twitterTitle: post.twitterTitle,
             twitterDescription: post.twitterDescription
         }));
@@ -192,10 +213,11 @@ router.get('/reviews', async (req, res) => {
         
         // --- THE FIX STARTS HERE ---
         // 1. Fetch the documents, selecting the full title and excerpt objects.
-        const reviewsFromDb = await Review.find({ isPublished: true })
-            .select('slug title excerpt body pros cons gameName rating image updatedAt')
-            .sort({ createdAt: -1 })
-            .lean(); // Use .lean() for better performance as we don't need Mongoose methods.
+        const reviewsFromDb = await Review.aggregate([
+            { $match: { isPublished: true } },
+            { $project: { slug: 1, title: 1, excerpt: 1, pros: 1, cons: 1, gameName: 1, rating: 1, image: 1, updatedAt: 1, createdAt: 1, ...bodyFlags } },
+            { $sort: { createdAt: -1 } },
+        ]);
 
         // 2. Manually transform the data into the simple format the frontend needs.
         const formattedReviews = reviewsFromDb.map(review => ({
@@ -207,8 +229,8 @@ router.get('/reviews', async (req, res) => {
             rating: review.rating,
             image: review.image,
             updatedAt: review.updatedAt,
-            translated: hasText(review.title && review.title[lang]) && hasText(review.body && review.body[lang])
-                && !isPlaceholderLang(review, lang, ['title', 'excerpt', 'body', 'pros', 'cons']),
+            translated: hasText(review.title && review.title[lang]) && bodyHasText(review, lang)
+                && !isPlaceholderLang(review, lang, ['title', 'excerpt', 'pros', 'cons']) && !bodyIsPlaceholder(review, lang),
         }));
         // --- THE FIX ENDS HERE ---
 
