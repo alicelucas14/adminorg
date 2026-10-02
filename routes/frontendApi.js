@@ -16,11 +16,30 @@ const hasText = (v) => typeof v === 'string' && v.trim().length > 0;
 const availableLangs = (doc, fields) =>
     ['en', 'hi'].filter((l) => fields.every((field) => hasText(doc[field] && doc[field][l])));
 
+// Untranslated Hindi text is stored as "[HI] <english text>". Such a page exists but must not be
+// indexed or advertised as a translation until a real Hindi version replaces the placeholder.
+const PLACEHOLDER_RE = /\[HI\]/;
+const hasPlaceholder = (value) => {
+    if (typeof value === 'string') return PLACEHOLDER_RE.test(value);
+    if (Array.isArray(value)) return value.some(hasPlaceholder);
+    return false;
+};
+const isPlaceholderLang = (doc, lang, fields) =>
+    lang === 'hi' && fields.some((field) => hasPlaceholder(doc[field] && doc[field][lang]));
+
+// Languages that are both real and worth indexing (no placeholder text).
+const indexableLangs = (doc, requiredFields, localizedFields) =>
+    availableLangs(doc, requiredFields).filter((l) => !isPlaceholderLang(doc, l, localizedFields));
+
 // Shape a full (lean) document for one language: drop the other language's text,
 // the internal slug history, and report which languages actually exist.
 function forLang(doc, lang, requiredFields, strippedFields) {
     const other = lang === 'hi' ? 'en' : 'hi';
-    const out = { ...doc, availableLangs: availableLangs(doc, requiredFields) };
+    const out = {
+        ...doc,
+        availableLangs: availableLangs(doc, requiredFields),
+        indexableLangs: indexableLangs(doc, requiredFields, strippedFields),
+    };
     for (const field of strippedFields) {
         if (out[field]) { out[field] = { ...out[field] }; delete out[field][other]; }
     }
@@ -70,7 +89,8 @@ router.get('/promotions', async (request, response) => {
                 ctaLink: promo.ctaLink,
                 badgeColor: promo.badgeColor,
                 updatedAt: promo.updatedAt,
-                translated: hasText(promo.title && promo.title[langKey]) && hasText(promo.description && promo.description[langKey]),
+                translated: hasText(promo.title && promo.title[langKey]) && hasText(promo.description && promo.description[langKey])
+                    && !isPlaceholderLang(promo, langKey, ['title', 'subtitle', 'description', 'details', 'ctaText', 'badgeText']),
             };
         });
             
@@ -125,7 +145,8 @@ router.get('/blog', async (req, res) => {
             tags: post.tags,
             publishedAt: post.publishedAt,
             updatedAt: post.updatedAt,
-            translated: hasText(post.title && post.title[lang]) && hasText(post.body && post.body[lang]),
+            translated: hasText(post.title && post.title[lang]) && hasText(post.body && post.body[lang])
+                && !isPlaceholderLang(post, lang, ['title', 'excerpt', 'body']),
             focusKeyword: post.focusKeyword,
             canonicalUrl: post.canonicalUrl,
             robotsIndex: post.robotsIndex,
@@ -172,7 +193,7 @@ router.get('/reviews', async (req, res) => {
         // --- THE FIX STARTS HERE ---
         // 1. Fetch the documents, selecting the full title and excerpt objects.
         const reviewsFromDb = await Review.find({ isPublished: true })
-            .select('slug title excerpt body gameName rating image updatedAt')
+            .select('slug title excerpt body pros cons gameName rating image updatedAt')
             .sort({ createdAt: -1 })
             .lean(); // Use .lean() for better performance as we don't need Mongoose methods.
 
@@ -186,7 +207,8 @@ router.get('/reviews', async (req, res) => {
             rating: review.rating,
             image: review.image,
             updatedAt: review.updatedAt,
-            translated: hasText(review.title && review.title[lang]) && hasText(review.body && review.body[lang]),
+            translated: hasText(review.title && review.title[lang]) && hasText(review.body && review.body[lang])
+                && !isPlaceholderLang(review, lang, ['title', 'excerpt', 'body', 'pros', 'cons']),
         }));
         // --- THE FIX ENDS HERE ---
 
@@ -229,7 +251,8 @@ router.get('/pages', async (req, res) => {
             title: p.title ? p.title[lang === 'hi' ? 'hi' : 'en'] : '',
             updatedAt: p.updatedAt,
             robotsIndex: p.robotsIndex,
-            translated: hasText(p.title && p.title[lang === 'hi' ? 'hi' : 'en']) && hasText(p.body && p.body[lang === 'hi' ? 'hi' : 'en']),
+            translated: hasText(p.title && p.title[lang === 'hi' ? 'hi' : 'en']) && hasText(p.body && p.body[lang === 'hi' ? 'hi' : 'en'])
+                && !isPlaceholderLang(p, lang === 'hi' ? 'hi' : 'en', ['title', 'body']),
         }));
         res.json(formattedPages);
     } catch (err) {
