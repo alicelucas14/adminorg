@@ -58,10 +58,8 @@ app.get(`/${ADMIN_BASE}`, (req, res) => {
   if (req.cookies.token) return res.redirect(`/${ADMIN_BASE}/dashboard`);
   res.render('login');
 });
-app.get(`/${ADMIN_BASE}/register`, (req, res) => {
-  if (req.cookies.token) return res.redirect(`/${ADMIN_BASE}/dashboard`);
-  res.render('register');
-});
+// Public sign-up is disabled: accounts are created by admins under Users. Old links go to login.
+app.get(`/${ADMIN_BASE}/register`, (req, res) => res.redirect(`/${ADMIN_BASE}`));
 app.use(`/${ADMIN_BASE}`, protect, adminUiRoutes);
 app.use('/admin', (req, res) => res.redirect(`/${ADMIN_BASE}` + req.url)); // Legacy redirect
 

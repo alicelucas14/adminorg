@@ -40,6 +40,40 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * @route   POST /api/admin/users
+ * @desc    Create a new user (public sign-up is disabled; only admins add accounts)
+ * @access  Private (Admin Only)
+ */
+router.post('/', async (req, res) => {
+    const username = typeof req.body.username === 'string' ? req.body.username.trim().toLowerCase() : '';
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
+    const role = req.body.role === 'admin' ? 'admin' : 'user';
+
+    if (!/^[a-z0-9._-]{3,30}$/.test(username)) {
+        return res.status(400).json({ message: 'Username must be 3-30 characters: letters, numbers, dot, dash or underscore.' });
+    }
+    if (password.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters long.' });
+    }
+
+    try {
+        if (await User.exists({ username })) {
+            return res.status(400).json({ message: 'Username is already taken.' });
+        }
+        const user = await User.create({ username, password, role }); // password hashed by the model's pre-save hook
+        res.status(201).json({
+            message: `User "${user.username}" created.`,
+            user: { _id: user._id, username: user.username, role: user.role, createdAt: user.createdAt },
+        });
+    } catch (error) {
+        if (error && error.code === 11000) {
+            return res.status(400).json({ message: 'Username is already taken.' });
+        }
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
  * @route   PUT /api/admin/users/:id/role
  * @desc    Toggle or update a user's role
  * @access  Private (Admin Only)
