@@ -120,6 +120,21 @@
                         <div><label for="twitterUrl" class="block text-sm font-medium">Twitter (X) URL</label><input type="url" id="twitterUrl" value="<%= settings ? settings.twitterUrl : '' %>" class="form-input"></div>
                         <div><label for="liveChatUrl" class="block text-sm font-medium">Live Chat URL</label><input type="url" id="liveChatUrl" value="<%= settings ? settings.liveChatUrl : '' %>" class="form-input"></div>
                      </div>
+
+                     <!-- More Social Links (pick a platform from the list, as many as needed) -->
+                     <div class="pt-4 mt-2 border-t border-gray-100">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-800">More Social Links</h4>
+                                <p class="text-xs text-gray-500 mt-0.5">Pick a platform and paste the link. They appear in the website footer after the links above, in this order.</p>
+                            </div>
+                            <button type="button" id="add-social-link" class="btn btn-secondary inline-flex items-center gap-1">
+                                <i class="ri-add-line"></i> Add Link
+                            </button>
+                        </div>
+                        <div id="extra-social-list" class="mt-4 space-y-3"></div>
+                        <p id="extra-social-empty" class="mt-4 text-sm text-gray-400 italic">No extra links yet. Click "Add Link" to add TikTok, Threads, Discord and more.</p>
+                     </div>
                 </div>
 
                 <!-- Technical SEO Settings Section -->
@@ -285,6 +300,127 @@
         splashStatus.textContent = 'Video removed. Click "Save Settings" to apply.';
         splashStatus.className = 'text-sm text-gray-600';
     });
+    // --- MORE SOCIAL LINKS: add / pick platform / reorder / remove ---
+    const SOCIAL_PLATFORMS = <%- JSON.stringify(socialPlatforms || []).replace(/</g, '\\u003c') %>;
+    const MAX_EXTRA_SOCIAL = <%= maxExtraSocialLinks || 30 %>;
+    const FRONTEND_BASE = <%- JSON.stringify((frontendUrl || '').replace(/\/+$/, '')).replace(/</g, '\\u003c') %>;
+    const socialList = document.getElementById('extra-social-list');
+    const socialEmpty = document.getElementById('extra-social-empty');
+    const addSocialBtn = document.getElementById('add-social-link');
+    const platformByKey = Object.fromEntries(SOCIAL_PLATFORMS.map((p) => [p.key, p]));
+    const initialExtraSocial = <%- JSON.stringify((settings && settings.extraSocialLinks) || []).replace(/</g, '\\u003c') %>;
+
+    const el = (tag, cls, attrs = {}) => {
+        const n = document.createElement(tag);
+        if (cls) n.className = cls;
+        for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+        return n;
+    };
+
+    function refreshSocialState() {
+        const rows = socialList.querySelectorAll('[data-social-row]');
+        socialEmpty.classList.toggle('hidden', rows.length > 0);
+        addSocialBtn.disabled = rows.length >= MAX_EXTRA_SOCIAL;
+        addSocialBtn.classList.toggle('opacity-50', addSocialBtn.disabled);
+        rows.forEach((row, i) => {
+            row.querySelector('[data-move="up"]').disabled = i === 0;
+            row.querySelector('[data-move="down"]').disabled = i === rows.length - 1;
+        });
+    }
+
+    function addSocialRow(item = {}) {
+        const row = el('div', 'rounded-lg border border-gray-200 bg-gray-50 p-3', { 'data-social-row': '' });
+        const line = el('div', 'flex flex-wrap md:flex-nowrap items-center gap-2');
+
+        const icon = el('img', 'h-9 w-9 rounded-lg object-contain bg-white border shrink-0', { alt: '', width: '36', height: '36' });
+        icon.addEventListener('error', () => { icon.style.visibility = 'hidden'; });
+        icon.addEventListener('load', () => { icon.style.visibility = 'visible'; });
+
+        const select = el('select', 'form-input !mt-0 w-full md:w-56 shrink-0', { 'aria-label': 'Platform' });
+        select.appendChild(new Option('Choose platform…', ''));
+        SOCIAL_PLATFORMS.forEach((p) => select.appendChild(new Option(p.label, p.key)));
+        select.required = true;
+        select.value = platformByKey[item.platform] ? item.platform : '';
+
+        const url = el('input', 'form-input !mt-0 flex-1 min-w-0', { type: 'url', placeholder: 'https://…', 'aria-label': 'Link URL' });
+        url.required = true;
+        url.value = item.url || '';
+
+        const btnCls = 'h-9 w-9 shrink-0 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed';
+        const up = el('button', btnCls, { type: 'button', title: 'Move up', 'aria-label': 'Move up', 'data-move': 'up' }); up.textContent = '↑';
+        const down = el('button', btnCls, { type: 'button', title: 'Move down', 'aria-label': 'Move down', 'data-move': 'down' }); down.textContent = '↓';
+        const del = el('button', 'h-9 w-9 shrink-0 rounded-md border border-red-200 bg-white text-red-600 hover:bg-red-50', { type: 'button', title: 'Remove', 'aria-label': 'Remove link' });
+        del.appendChild(el('i', 'ri-delete-bin-line'));
+
+        line.append(icon, select, url, up, down, del);
+
+        // "Other": custom name + icon
+        const other = el('div', 'mt-3 flex flex-wrap items-center gap-2');
+        const label = el('input', 'form-input !mt-0 w-full md:w-56', { type: 'text', maxlength: '40', placeholder: 'Name shown on hover (e.g. Our Blog)', 'aria-label': 'Custom name' });
+        label.value = item.label || '';
+        const iconUrl = el('input', '', { type: 'hidden' });
+        iconUrl.value = item.iconUrl || '';
+        const fileId = 'social-icon-' + Math.random().toString(36).slice(2);
+        const uploadLbl = el('label', 'btn btn-secondary cursor-pointer text-sm', { for: fileId }); uploadLbl.textContent = 'Upload icon';
+        const file = el('input', 'sr-only', { type: 'file', id: fileId, accept: 'image/png,image/jpeg,image/webp,image/gif' });
+        const status = el('span', 'text-xs text-gray-500'); status.textContent = 'Square PNG/WEBP, at least 64×64.';
+        other.append(label, iconUrl, uploadLbl, file, status);
+
+        row.append(line, other);
+
+        const sync = () => {
+            const p = platformByKey[select.value];
+            const isOther = select.value === 'other';
+            other.classList.toggle('hidden', !isOther);
+            label.required = isOther;
+            const src = isOther && iconUrl.value ? iconUrl.value : (p ? FRONTEND_BASE + p.icon : '');
+            if (src) icon.src = src; else { icon.removeAttribute('src'); icon.style.visibility = 'hidden'; }
+        };
+        select.addEventListener('change', sync);
+
+        file.addEventListener('change', async () => {
+            const f = file.files[0];
+            file.value = '';
+            if (!f) return;
+            const fd = new FormData();
+            fd.append('image', f);
+            status.textContent = 'Uploading…';
+            status.className = 'text-xs text-gray-600';
+            try {
+                const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+                const res = await fetch('/api/admin/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
+                const result = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(result.message || 'Upload failed');
+                iconUrl.value = result.filePath;
+                sync();
+                status.textContent = 'Icon uploaded.';
+                status.className = 'text-xs text-green-600 font-medium';
+            } catch (err) {
+                status.textContent = `Error: ${err.message}`;
+                status.className = 'text-xs text-red-600 font-medium';
+            }
+        });
+
+        up.addEventListener('click', () => { if (row.previousElementSibling) socialList.insertBefore(row, row.previousElementSibling); refreshSocialState(); });
+        down.addEventListener('click', () => { if (row.nextElementSibling) socialList.insertBefore(row.nextElementSibling, row); refreshSocialState(); });
+        del.addEventListener('click', () => { row.remove(); refreshSocialState(); });
+
+        row._getValue = () => ({ platform: select.value, url: url.value.trim(), label: label.value.trim(), iconUrl: iconUrl.value });
+        socialList.appendChild(row);
+        sync();
+        refreshSocialState();
+        return row;
+    }
+
+    initialExtraSocial.forEach((item) => addSocialRow(item));
+    refreshSocialState();
+    addSocialBtn.addEventListener('click', () => {
+        const row = addSocialRow();
+        row.querySelector('select').focus();
+    });
+
+    const getExtraSocialLinks = () =>
+        Array.from(socialList.querySelectorAll('[data-social-row]')).map((row) => row._getValue());
 
 
 
@@ -318,7 +454,8 @@
             customHeaderScripts: document.getElementById('customHeaderScripts').value,
             customFooterScripts: document.getElementById('customFooterScripts').value,
             showSplashVideo: document.getElementById('showSplashVideo').checked,
-            splashVideoUrl: document.getElementById('splashVideoUrl').value.trim()
+            splashVideoUrl: document.getElementById('splashVideoUrl').value.trim(),
+            extraSocialLinks: getExtraSocialLinks()
         };
         
         try {

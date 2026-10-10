@@ -157,7 +157,19 @@ const settingSchema = new mongoose.Schema({
 
     // --- Mobile Splash Video (plays once per visit on phones, before the site) ---
     showSplashVideo: { type: Boolean, default: false },
-    splashVideoUrl: { type: String, trim: true, default: '' }
+    splashVideoUrl: { type: String, trim: true, default: '' },
+
+    // --- More Social Links (picked from lib/socialPlatforms.js; shown in the site footer) ---
+    extraSocialLinks: {
+        type: [{
+            _id: false,
+            platform: { type: String, trim: true, required: true },
+            url: { type: String, trim: true, required: true },
+            label: { type: String, trim: true, default: '' },   // only for platform "other"
+            iconUrl: { type: String, trim: true, default: '' }, // only for platform "other"
+        }],
+        default: [],
+    }
 }, { timestamps: true });
 
 

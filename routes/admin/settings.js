@@ -6,6 +6,7 @@ const router = express.Router();
 // fetch is no longer needed
 const { Setting } = require('../../models');
 const { protect } = require('../../middleware/authMiddleware');
+const { sanitizeExtraSocialLinks } = require('../../lib/socialPlatforms');
 
 // Protect all routes in this file
 router.use(protect);
@@ -42,9 +43,14 @@ router.get('/', async (request, response) => {
  */
 router.put('/', async (request, response) => {
     try {
+        const update = { ...request.body };
+        if ('extraSocialLinks' in update) {
+            update.extraSocialLinks = sanitizeExtraSocialLinks(update.extraSocialLinks);
+        }
+
         const updatedSettings = await Setting.findOneAndUpdate(
             { key: 'siteSettings' },
-            request.body,
+            update,
             { new: true, runValidators: true }
         );
 
