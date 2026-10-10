@@ -71,6 +71,43 @@
                     </div>
                 </div>
 
+                <!-- Mobile Splash Video Section -->
+                <div class="p-6 space-y-4">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">Mobile Splash Video</h3>
+                            <p class="mt-1 text-sm text-gray-500">Plays full-screen on phones the first time someone opens the site (once per visit). Muted, with a Skip button; the site appears when the video ends.</p>
+                        </div>
+                        <label for="showSplashVideo" class="inline-flex items-center gap-2 cursor-pointer shrink-0 mt-1">
+                            <input type="checkbox" id="showSplashVideo" class="form-checkbox h-5 w-5" <%= (settings && settings.showSplashVideo) ? 'checked' : '' %>>
+                            <span class="text-sm font-medium text-gray-700">Enabled</span>
+                        </label>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row md:items-start gap-6">
+                        <div class="shrink-0">
+                            <video id="splash-video-preview" class="w-40 aspect-[9/16] object-cover rounded-md bg-gray-900 border <%= (settings && settings.splashVideoUrl) ? '' : 'hidden' %>"
+                                   src="<%= settings ? settings.splashVideoUrl : '' %>" muted playsinline controls preload="metadata"></video>
+                            <div id="splash-video-empty" class="w-40 aspect-[9/16] rounded-md bg-gray-100 border border-dashed grid place-items-center text-xs text-gray-400 text-center p-2 <%= (settings && settings.splashVideoUrl) ? 'hidden' : '' %>">No video yet</div>
+                        </div>
+                        <div class="flex-grow space-y-3">
+                            <div class="flex flex-wrap items-center gap-3">
+                                <label for="splash-video-upload-input" class="btn btn-secondary cursor-pointer">
+                                    <span>Upload Video</span>
+                                </label>
+                                <input id="splash-video-upload-input" type="file" accept="video/mp4,video/webm" class="sr-only">
+                                <button type="button" id="splash-video-remove" class="text-sm font-medium text-red-600 hover:text-red-800">Remove video</button>
+                            </div>
+                            <p class="text-xs text-gray-500">MP4 (H.264) or WebM, up to 30MB. Vertical 9:16 looks best. Keep it short (3&ndash;8 seconds) and small (ideally under 3MB) so it starts instantly on mobile data.</p>
+                            <div id="splash-video-upload-status" class="text-sm"></div>
+                            <div>
+                                <label for="splashVideoUrl" class="block text-sm font-medium text-gray-700">Video URL</label>
+                                <input type="url" id="splashVideoUrl" value="<%= settings ? settings.splashVideoUrl : '' %>" class="form-input" placeholder="Filled automatically after upload, or paste a direct .mp4 link">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Social & Support Links Section -->
                 <div class="p-6 space-y-4">
                      <h3 class="text-lg font-semibold text-gray-800">Social & Support Links</h3>
@@ -185,6 +222,70 @@
         );
     });
 
+    // --- SPLASH VIDEO: upload, preview, remove ---
+    const splashUrlInput = document.getElementById('splashVideoUrl');
+    const splashPreview = document.getElementById('splash-video-preview');
+    const splashEmpty = document.getElementById('splash-video-empty');
+    const splashStatus = document.getElementById('splash-video-upload-status');
+
+    function setSplashPreview(url) {
+        if (url) {
+            splashPreview.src = url;
+            splashPreview.classList.remove('hidden');
+            splashEmpty.classList.add('hidden');
+        } else {
+            splashPreview.removeAttribute('src');
+            splashPreview.load();
+            splashPreview.classList.add('hidden');
+            splashEmpty.classList.remove('hidden');
+        }
+    }
+
+    document.getElementById('splash-video-upload-input').addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        event.target.value = '';
+        if (!file) return;
+        if (file.size > 30 * 1024 * 1024) {
+            splashStatus.textContent = 'Error: Video is too large. Maximum size is 30 MB.';
+            splashStatus.className = 'text-sm text-red-600 font-medium';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('video', file);
+        splashStatus.textContent = `Uploading ${(file.size / 1024 / 1024).toFixed(1)} MB...`;
+        splashStatus.className = 'text-sm text-gray-600';
+
+        try {
+            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+            const response = await fetch('/api/admin/upload/video', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+            });
+            // A proxy rejecting a large body returns HTML, not JSON
+            const result = await response.json().catch(() => ({ message: response.status === 413 ? 'Video is too large for the server upload limit.' : `Upload failed (HTTP ${response.status}).` }));
+            if (!response.ok) throw new Error(result.message || 'Upload failed');
+
+            splashUrlInput.value = result.filePath;
+            setSplashPreview(result.filePath);
+            splashStatus.textContent = 'Upload successful! Click "Save Settings" to publish it.';
+            splashStatus.className = 'text-sm text-green-600 font-medium';
+        } catch (error) {
+            splashStatus.textContent = `Error: ${error.message}`;
+            splashStatus.className = 'text-sm text-red-600 font-medium';
+        }
+    });
+
+    splashUrlInput.addEventListener('change', () => setSplashPreview(splashUrlInput.value.trim()));
+
+    document.getElementById('splash-video-remove').addEventListener('click', () => {
+        splashUrlInput.value = '';
+        setSplashPreview('');
+        splashStatus.textContent = 'Video removed. Click "Save Settings" to apply.';
+        splashStatus.className = 'text-sm text-gray-600';
+    });
+
 
 
     // --- FORM SUBMISSION LOGIC (unchanged) ---
@@ -215,7 +316,9 @@
             googleSearchConsoleVerification: document.getElementById('googleSearchConsoleVerification').value,
             ahrefsVerification: document.getElementById('ahrefsVerification').value,
             customHeaderScripts: document.getElementById('customHeaderScripts').value,
-            customFooterScripts: document.getElementById('customFooterScripts').value
+            customFooterScripts: document.getElementById('customFooterScripts').value,
+            showSplashVideo: document.getElementById('showSplashVideo').checked,
+            splashVideoUrl: document.getElementById('splashVideoUrl').value.trim()
         };
         
         try {

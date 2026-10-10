@@ -89,4 +89,41 @@ router.post('/', protect, (req, res) => {
     });
 });
 
+// --- Video uploads (used by the mobile splash video in Settings) ---
+// Kept separate from the image uploader so images keep their tighter type/size rules.
+const VIDEO_MAX_MB = 30;
+const ALLOWED_VIDEO = { '.mp4': 'video/mp4', '.webm': 'video/webm' };
+
+const videoUpload = multer({
+    storage: storage,
+    limits: { fileSize: VIDEO_MAX_MB * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (ALLOWED_VIDEO[ext] && ALLOWED_VIDEO[ext] === file.mimetype) return cb(null, true);
+        cb(new Error('Only MP4 or WebM video files are allowed.'));
+    }
+});
+
+/**
+ * @route   POST /api/admin/upload/video
+ * @desc    Upload a single video (form field name: 'video'). Returns its absolute URL.
+ * @access  Private (Admin)
+ */
+router.post('/video', protect, (req, res) => {
+    videoUpload.single('video')(req, res, function (err) {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ message: `Video is too large. Maximum size is ${VIDEO_MAX_MB} MB.` });
+        } else if (err) {
+            return res.status(400).json({ message: err.message });
+        }
+        if (!req.file) {
+            return res.status(400).json({ message: 'No video was uploaded.' });
+        }
+
+        const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
+        const absolutePath = new URL(`/uploads/${req.file.filename}`, backendUrl).href;
+        res.status(200).json({ message: 'Video uploaded successfully!', filePath: absolutePath });
+    });
+});
+
 module.exports = router;

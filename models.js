@@ -153,7 +153,11 @@ const settingSchema = new mongoose.Schema({
     // --- Homepage Popup Banner ---
     showPopupBanner: { type: Boolean, default: false },
     popupBannerImageUrl: { type: String, default: '' },
-    popupBannerLink: { type: String, default: '' }
+    popupBannerLink: { type: String, default: '' },
+
+    // --- Mobile Splash Video (plays once per visit on phones, before the site) ---
+    showSplashVideo: { type: Boolean, default: false },
+    splashVideoUrl: { type: String, trim: true, default: '' }
 }, { timestamps: true });
 
 
