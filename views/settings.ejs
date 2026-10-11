@@ -413,7 +413,7 @@
     setInterval(() => visibilityControls.forEach((c) => c.isConnected() && c.refresh()), 30000);
 
     // Built-in links (Telegram, WhatsApp, ...): controls go under each URL field
-    const FIXED_SOCIAL = <%- JSON.stringify(fixedSocialLinks || []).replace(/</g, '\\u003c') %>;
+    const FIXED_SOCIAL = <%- JSON.stringify(locals.fixedSocialLinks || []).replace(/</g, '\\u003c') %>;
     const initialDisplay = <%- JSON.stringify(((settings && settings.toObject ? settings.toObject() : settings) || {}).socialLinkDisplay || {}).replace(/</g, '\\u003c') %>;
     const fixedControls = {};
     FIXED_SOCIAL.forEach((f) => {
