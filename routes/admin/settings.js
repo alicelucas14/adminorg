@@ -6,7 +6,7 @@ const router = express.Router();
 // fetch is no longer needed
 const { Setting } = require('../../models');
 const { protect } = require('../../middleware/authMiddleware');
-const { sanitizeExtraSocialLinks } = require('../../lib/socialPlatforms');
+const { sanitizeExtraSocialLinks, sanitizeSocialLinkDisplay } = require('../../lib/socialPlatforms');
 
 // Protect all routes in this file
 router.use(protect);
@@ -46,6 +46,9 @@ router.put('/', async (request, response) => {
         const update = { ...request.body };
         if ('extraSocialLinks' in update) {
             update.extraSocialLinks = sanitizeExtraSocialLinks(update.extraSocialLinks);
+        }
+        if ('socialLinkDisplay' in update) {
+            update.socialLinkDisplay = sanitizeSocialLinkDisplay(update.socialLinkDisplay);
         }
 
         const updatedSettings = await Setting.findOneAndUpdate(

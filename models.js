@@ -129,6 +129,16 @@ const promotionSchema = new mongoose.Schema({
  *  SETTING SCHEMA (NEW)
  * =============================================================================
  */
+// Where a social link shows (footer / sidebar) and when it is live. Empty dates = no limit.
+// A function so each schema gets its own copy (Mongoose mutates field definitions).
+const socialVisibilityFields = () => ({
+    showInFooter: { type: Boolean, default: true },
+    showInSidebar: { type: Boolean, default: true },
+    activeFrom: { type: Date, default: null },
+    activeUntil: { type: Date, default: null },
+});
+const socialDisplaySchema = new mongoose.Schema(socialVisibilityFields(), { _id: false });
+const socialDisplayPath = (defaults = {}) => ({ type: socialDisplaySchema, default: () => ({ ...defaults }) });
 const settingSchema = new mongoose.Schema({
     key: { type: String, default: 'siteSettings', unique: true },
     siteName: { type: String, default: 'Starsuu7' },
@@ -167,8 +177,19 @@ const settingSchema = new mongoose.Schema({
             url: { type: String, trim: true, required: true },
             label: { type: String, trim: true, default: '' },   // only for platform "other"
             iconUrl: { type: String, trim: true, default: '' }, // only for platform "other"
+            ...socialVisibilityFields(),
         }],
         default: [],
+    },
+
+    // --- Placement + schedule for the built-in links above (keys = FIXED_SOCIAL_LINKS) ---
+    socialLinkDisplay: {
+        telegram: socialDisplayPath(),
+        whatsapp: socialDisplayPath(),
+        instagram: socialDisplayPath(),
+        facebook: socialDisplayPath(),
+        youtube: socialDisplayPath(),
+        twitter: socialDisplayPath({ showInSidebar: false }), // X was never on the sidebar
     }
 }, { timestamps: true });
 

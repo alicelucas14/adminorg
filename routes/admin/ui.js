@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { Game, BlogPost, Review, Promotion, Setting, Page, LinkCheckResult, PopupBanner } = require('../../models');
 const { adminOnly } = require('../../middleware/authMiddleware');
-const { SOCIAL_PLATFORMS, MAX_EXTRA_SOCIAL_LINKS } = require('../../lib/socialPlatforms');
+const { SOCIAL_PLATFORMS, FIXED_SOCIAL_LINKS, MAX_EXTRA_SOCIAL_LINKS } = require('../../lib/socialPlatforms');
 
 const frontendUrl = process.env.FRONTEND_URL;
 
@@ -66,7 +66,7 @@ router.get('/settings', async (request, response) => {
             { $setOnInsert: { key: 'siteSettings' } },
             { new: true, upsert: true, setDefaultsOnInsert: true }
         );
-        response.render('settings', { user: request.user, page: 'settings', title: 'Site Settings', settings: settings, apiEndpoint: '/api/admin/settings', frontendUrl: frontendUrl, socialPlatforms: SOCIAL_PLATFORMS, maxExtraSocialLinks: MAX_EXTRA_SOCIAL_LINKS });
+        response.render('settings', { user: request.user, page: 'settings', title: 'Site Settings', settings: settings, apiEndpoint: '/api/admin/settings', frontendUrl: frontendUrl, socialPlatforms: SOCIAL_PLATFORMS, fixedSocialLinks: FIXED_SOCIAL_LINKS, maxExtraSocialLinks: MAX_EXTRA_SOCIAL_LINKS });
     } catch (error) {
         response.status(500).send('Server Error');
     }
