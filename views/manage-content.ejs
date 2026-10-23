@@ -33,7 +33,7 @@
             <option value="published">Published</option>
             <option value="draft">Drafts</option>
         </select>
-        <button type="button" id="open-paste-dialog-btn" class="btn btn-secondary whitespace-nowrap">
+        <button type="button" id="open-paste-dialog-btn" class="btn btn-secondary border border-gray-300 px-4 py-2 whitespace-nowrap">
             <i class="ri-list-check-2 mr-1"></i> Unpublish from a list…
         </button>
     </div>
@@ -50,12 +50,13 @@
             Unpublished items become <strong>Draft</strong>: they disappear from the website and sitemap, but nothing is deleted
             and you can publish them again here or with the Drafts filter.
         </p>
-        <textarea id="paste-dialog-input" rows="10" class="form-input mt-4 w-full font-mono text-xs" placeholder="https://uu7stars.com/blog/slot-rtp-guide/&#10;slot-volatility-guide"></textarea>
+        <textarea id="paste-dialog-input" rows="10" class="form-input mt-4 w-full font-mono text-xs text-gray-800" placeholder="Paste the URLs here, one per line…"></textarea>
         <div id="paste-dialog-result" class="mt-3 text-sm hidden"></div>
+        <!-- Explicit padding/border utilities: Tailwind's CDN reset overrides the .btn padding and border on <button> -->
         <div class="mt-4 flex justify-end gap-2">
-            <button type="button" id="paste-dialog-cancel" class="btn btn-secondary">Close</button>
-            <button type="button" id="paste-dialog-publish" class="btn btn-secondary">Publish these</button>
-            <button type="button" id="paste-dialog-unpublish" class="btn btn-primary">Unpublish these</button>
+            <button type="button" id="paste-dialog-cancel" class="btn btn-secondary border border-gray-300 px-4 py-2">Close</button>
+            <button type="button" id="paste-dialog-publish" class="btn btn-secondary border border-gray-300 px-4 py-2">Publish these</button>
+            <button type="button" id="paste-dialog-unpublish" class="btn btn-primary px-4 py-2">Unpublish these</button>
         </div>
     </div>
 </div>
