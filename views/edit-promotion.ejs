@@ -29,6 +29,15 @@
                            class="form-input <%= promotion ? 'bg-gray-100 cursor-not-allowed' : '' %>">
                 </div>
 
+                <!-- Status -->
+                <div>
+                    <label for="isPublished" class="block text-sm font-medium text-gray-700">Status</label>
+                    <select id="isPublished" class="form-select">
+                        <option value="true" <%= !promotion || promotion.isPublished !== false ? 'selected' : '' %>>Published (visible on the website)</option>
+                        <option value="false" <%= promotion && promotion.isPublished === false ? 'selected' : '' %>>Draft (hidden from the website, not deleted)</option>
+                    </select>
+                </div>
+
                 <!-- Title (English & Hindi) -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -203,6 +212,7 @@
             slug: document.getElementById('slug').value,
             title: { en: document.getElementById('title_en').value, hi: document.getElementById('title_hi').value },
             subtitle: { en: document.getElementById('subtitle_en').value, hi: document.getElementById('subtitle_hi').value },
+            isPublished: document.getElementById('isPublished').value === 'true',
             description: { en: document.getElementById('description_en').value, hi: document.getElementById('description_hi').value },
             ctaText: { en: document.getElementById('ctaText_en').value, hi: document.getElementById('ctaText_hi').value },
             badgeText: { en: document.getElementById('badgeText_en').value, hi: document.getElementById('badgeText_hi').value },

@@ -6,6 +6,7 @@ const { OpenAI } = require('openai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { Page } = require('../../models');
 const { escapeRegex } = require('../../lib/escapeRegex');
+const { bulkPublishHandler, statusFilter } = require('../../lib/publishing');
 const { protect } = require('../../middleware/authMiddleware');
 
 router.use(protect);
@@ -102,7 +103,7 @@ router.get('/', async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
         const searchQuery = req.query.search;
-        const filter = {};
+        const filter = statusFilter(req.query.status);
         if (searchQuery) {
             const regex = new RegExp(escapeRegex(searchQuery), 'i');
             filter.$or = [ { 'title.en': regex }, { 'title.hi': regex }, { slug: regex } ];
@@ -116,6 +117,13 @@ router.get('/', async (req, res) => {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 });
+
+/**
+ * @route   PATCH /api/admin/pages/bulk-publish
+ * @desc    Publish, or unpublish (Draft), several pages at once - by selected ids or pasted URLs/slugs
+ * @access  Private (Admin)
+ */
+router.patch('/bulk-publish', bulkPublishHandler(Page, 'page'));
 
 /**
  * @route   DELETE /api/admin/pages/bulk-delete

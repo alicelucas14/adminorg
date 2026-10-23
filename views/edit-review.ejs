@@ -40,6 +40,15 @@
 
         <form id="reviewForm">
             <div class="p-6 space-y-6">
+                <!-- Status -->
+                <div>
+                    <label for="isPublished" class="block text-sm font-medium text-gray-700">Status</label>
+                    <select id="isPublished" class="form-select">
+                        <option value="true" <%= !review || review.isPublished !== false ? 'selected' : '' %>>Published (visible on the website)</option>
+                        <option value="false" <%= review && review.isPublished === false ? 'selected' : '' %>>Draft (hidden from the website, not deleted)</option>
+                    </select>
+                </div>
+
                 <!-- Slug & Title -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -238,6 +247,7 @@
             body: { en: easyMDE_en.value(), hi: easyMDE_hi.value() },
             gameName: document.getElementById('gameName').value,
             developer: document.getElementById('developer').value,
+            isPublished: document.getElementById('isPublished').value === 'true',
             rating: parseFloat(document.getElementById('rating').value),
             image: imagePathInput.value,
             pros: { en: getArrayFromTextarea('pros_en'), hi: getArrayFromTextarea('pros_hi') },

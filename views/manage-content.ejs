@@ -3,6 +3,7 @@
 
 <%- include('partials/_header') %>
 <%- include('partials/_sidebar') %>
+<% const publishable = ['blog', 'reviews', 'promotions', 'pages'].includes(page); %>
 
 <!-- Page Header & Actions -->
 <div class="mb-6 md:flex md:justify-between md:items-center">
@@ -25,7 +26,40 @@
         </div>
         <input type="text" id="search-input" placeholder="Search by name, ID, or slug..." class="form-input !mt-0 pl-10 w-full">
     </div>
+    <% if (publishable) { %>
+    <div class="flex items-center gap-2 ml-4">
+        <select id="status-filter" class="form-select !mt-0 py-2" aria-label="Filter by status">
+            <option value="">All</option>
+            <option value="published">Published</option>
+            <option value="draft">Drafts</option>
+        </select>
+        <button type="button" id="open-paste-dialog-btn" class="btn btn-secondary whitespace-nowrap">
+            <i class="ri-list-check-2 mr-1"></i> Unpublish from a list…
+        </button>
+    </div>
+    <% } %>
 </div>
+
+<% if (publishable) { %>
+<!-- Publish / unpublish by pasted URLs or slugs (e.g. a column copied from a spreadsheet) -->
+<div id="paste-dialog" class="hidden fixed inset-0 z-50 bg-black/40 items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="paste-dialog-title">
+    <div class="card w-full max-w-2xl p-6">
+        <h3 id="paste-dialog-title" class="text-lg font-semibold text-gray-800">Publish or unpublish from a list</h3>
+        <p class="mt-1 text-sm text-gray-500">
+            Paste URLs or slugs, one per line (up to 500). Full site URLs, English or Hindi, are fine.
+            Unpublished items become <strong>Draft</strong>: they disappear from the website and sitemap, but nothing is deleted
+            and you can publish them again here or with the Drafts filter.
+        </p>
+        <textarea id="paste-dialog-input" rows="10" class="form-input mt-4 w-full font-mono text-xs" placeholder="https://uu7stars.com/blog/slot-rtp-guide/&#10;slot-volatility-guide"></textarea>
+        <div id="paste-dialog-result" class="mt-3 text-sm hidden"></div>
+        <div class="mt-4 flex justify-end gap-2">
+            <button type="button" id="paste-dialog-cancel" class="btn btn-secondary">Close</button>
+            <button type="button" id="paste-dialog-publish" class="btn btn-secondary">Publish these</button>
+            <button type="button" id="paste-dialog-unpublish" class="btn btn-primary">Unpublish these</button>
+        </div>
+    </div>
+</div>
+<% } %>
 
 
 <!-- Bulk Actions Toolbar -->
@@ -34,6 +68,10 @@
     <div class="flex items-center space-x-2 mt-2 md:mt-0">
         <select id="bulk-action-select" class="form-select !mt-0 py-1.5">
             <option value="">Bulk Actions</option>
+            <% if (publishable) { %>
+                <option value="unpublish">Unpublish (move to Draft)</option>
+                <option value="publish">Publish Selected</option>
+            <% } %>
             <option value="delete">Delete Selected</option>
             <% if (page === 'reviews') { %>
                 <option value="generate-review-comments">Generate AI Comments</option>
@@ -84,9 +122,10 @@
     // --- STATE & DOM ELEMENTS ---
     const apiEndpoint = '<%= apiEndpoint %>';
     const pageType = '<%= page %>';
+    const canPublish = <%= publishable %>;
     let currentPage = 1, totalPages = 1;
     let selectedIds = new Set();
-    let currentSearchQuery = '', debounceTimer; 
+    let currentSearchQuery = '', currentStatus = '', debounceTimer;
 
     const tableBody = document.getElementById('content-table-body');
     const searchInput = document.getElementById('search-input');
@@ -132,6 +171,10 @@
                 aiCommentsButton = `<button class="text-blue-600 hover:text-blue-900 generate-blog-comments-btn font-medium" data-id="${item._id}">AI Comments</button>`;
             }
 
+            const publishButton = canPublish
+                ? `<button class="text-amber-600 hover:text-amber-800 toggle-publish-btn font-medium" data-id="${item._id}" data-publish="${status ? 'false' : 'true'}">${status ? 'Unpublish' : 'Publish'}</button>`
+                : '';
+
             row.innerHTML = `
                 <td class="p-4"><input type="checkbox" class="item-checkbox form-checkbox" data-id="${item._id}"></td>
                 <td class="px-6 py-4"><img src="${imageUrl}" alt="Image for ${title}" class="w-20 h-12 object-cover rounded-md bg-gray-100"></td>
@@ -140,6 +183,7 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${updatedDate}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
                     ${aiCommentsButton}
+                    ${publishButton}
                     <a href="<%= adminBase %>/${pageType}/edit/${item._id}" class="text-primary-600 hover:text-primary-900 font-medium">Edit</a>
                     <button class="text-red-600 hover:text-red-900 delete-btn font-medium" data-id="${item._id}">Delete</button>
                 </td>
@@ -173,6 +217,7 @@
         updateBulkActionsUI();
         let url = `${apiEndpoint}?page=${page}&limit=10`;
         if (currentSearchQuery) url += `&search=${encodeURIComponent(currentSearchQuery)}`;
+        if (currentStatus) url += `&status=${encodeURIComponent(currentStatus)}`;
         try {
             const token = getToken();
             if (!token) throw new Error('Authentication token not found.');
@@ -205,6 +250,28 @@
                 fetchContent(currentPage); // Refreshes and clears selection
             } catch (error) { showToast(`Error: ${error.message}`, 'error'); }
         }
+    };
+
+    // Publish / unpublish (Draft). `selection` is { ids } from the table or { slugs } pasted in the dialog.
+    const setPublished = async (selection, isPublished) => {
+        const response = await fetch(`${apiEndpoint}/bulk-publish`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...selection, isPublished })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || 'Failed to update status.');
+        return result;
+    };
+
+    const handleBulkPublish = async (isPublished) => {
+        const count = selectedIds.size;
+        if (!isPublished && !confirm(`Unpublish ${count} item(s)? They will be hidden from the website (moved to Draft). Nothing is deleted.`)) return;
+        try {
+            const result = await setPublished({ ids: Array.from(selectedIds) }, isPublished);
+            showToast(result.message, 'success');
+            fetchContent(currentPage);
+        } catch (error) { showToast(`Error: ${error.message}`, 'error'); }
     };
 
     const handleSingleAiComments = async (target, endpoint) => {
@@ -290,6 +357,18 @@
                 } catch (error) { showToast(`Error: ${error.message}`, 'error'); }
             }
         }
+        if (target.classList.contains('toggle-publish-btn')) {
+            const isPublished = target.dataset.publish === 'true';
+            target.disabled = true;
+            try {
+                const result = await setPublished({ ids: [target.dataset.id] }, isPublished);
+                showToast(result.message, 'success');
+                fetchContent(currentPage);
+            } catch (error) {
+                showToast(`Error: ${error.message}`, 'error');
+                target.disabled = false;
+            }
+        }
         if (target.classList.contains('item-checkbox')) {
             const id = target.dataset.id;
             if (target.checked) selectedIds.add(id); else selectedIds.delete(id);
@@ -321,12 +400,56 @@
 
         if (action === 'delete') {
             handleBulkDelete();
+        } else if (action === 'unpublish' || action === 'publish') {
+            handleBulkPublish(action === 'publish');
         } else if (action === 'generate-review-comments') {
             handleBulkAiComments('/api/admin/comments/bulk-generate', 'reviewIds');
         } else if (action === 'generate-blog-comments') {
             handleBulkAiComments('/api/admin/blog-comments/bulk-generate', 'postIds');
         }
     });
+
+    if (canPublish) {
+        document.getElementById('status-filter').addEventListener('change', (e) => {
+            currentStatus = e.target.value;
+            fetchContent(1);
+        });
+
+        const dialog = document.getElementById('paste-dialog');
+        const dialogInput = document.getElementById('paste-dialog-input');
+        const dialogResult = document.getElementById('paste-dialog-result');
+        const openDialog = () => { dialog.classList.remove('hidden'); dialog.classList.add('flex'); dialogInput.focus(); };
+        const closeDialog = () => { dialog.classList.add('hidden'); dialog.classList.remove('flex'); };
+        const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        const submitList = async (isPublished, button) => {
+            const slugs = dialogInput.value.split(/[\r\n,\t]+/).map((s) => s.trim()).filter(Boolean);
+            if (slugs.length === 0) { showToast('Paste at least one URL or slug.', 'error'); return; }
+            if (!isPublished && !confirm(`Unpublish ${slugs.length} item(s)? They will be hidden from the website (moved to Draft). Nothing is deleted.`)) return;
+            button.disabled = true;
+            try {
+                const result = await setPublished({ slugs }, isPublished);
+                dialogResult.classList.remove('hidden');
+                dialogResult.className = `mt-3 text-sm ${result.notFound.length ? 'text-amber-700' : 'text-green-700'}`;
+                dialogResult.innerHTML = escapeHtml(result.message) + (result.notFound.length
+                    ? `<details class="mt-1"><summary class="cursor-pointer">Not found (${result.notFound.length})</summary><pre class="mt-1 text-xs whitespace-pre-wrap">${escapeHtml(result.notFound.join('\n'))}</pre></details>`
+                    : '');
+                showToast(result.message, 'success');
+                fetchContent(1);
+            } catch (error) {
+                showToast(`Error: ${error.message}`, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        };
+
+        document.getElementById('open-paste-dialog-btn').addEventListener('click', openDialog);
+        document.getElementById('paste-dialog-cancel').addEventListener('click', closeDialog);
+        dialog.addEventListener('click', (e) => { if (e.target === dialog) closeDialog(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !dialog.classList.contains('hidden')) closeDialog(); });
+        document.getElementById('paste-dialog-unpublish').addEventListener('click', (e) => submitList(false, e.currentTarget));
+        document.getElementById('paste-dialog-publish').addEventListener('click', (e) => submitList(true, e.currentTarget));
+    }
 
     // --- INITIAL FETCH ---
     fetchContent(currentPage);

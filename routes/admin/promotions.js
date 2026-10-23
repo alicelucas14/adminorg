@@ -6,6 +6,7 @@ const router = express.Router();
 // fetch is no longer needed
 const { Promotion } = require('../../models');
 const { escapeRegex } = require('../../lib/escapeRegex');
+const { bulkPublishHandler, statusFilter } = require('../../lib/publishing');
 const { protect } = require('../../middleware/authMiddleware');
 
 // Protect all routes in this file
@@ -25,7 +26,7 @@ router.get('/', async (request, response) => {
         const skip = (page - 1) * limit;
         const searchQuery = request.query.search;
 
-        const filter = {};
+        const filter = statusFilter(request.query.status);
         if (searchQuery) {
             const regex = new RegExp(escapeRegex(searchQuery), 'i');
             filter.$or = [
@@ -116,6 +117,13 @@ router.put('/:id', async (request, response) => {
         response.status(500).json({ message: 'Server Error while updating promotion.', error: error.message });
     }
 });
+
+/**
+ * @route   PATCH /api/admin/promotions/bulk-publish
+ * @desc    Publish, or unpublish (Draft), several promotions at once - by selected ids or pasted URLs/slugs
+ * @access  Private (Admin)
+ */
+router.patch('/bulk-publish', bulkPublishHandler(Promotion, 'promotion'));
 
 /**
  * @route   DELETE /api/admin/promotions/bulk-delete

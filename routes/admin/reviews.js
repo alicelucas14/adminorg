@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { Review, Comment, Game } = require('../../models'); // <-- IMPORT Game model
 const { escapeRegex } = require('../../lib/escapeRegex');
+const { bulkPublishHandler, statusFilter } = require('../../lib/publishing');
 const { protect } = require('../../middleware/authMiddleware');
 const { generateReviewWithAI, generateCommentsForReview } = require('../../lib/aiContent');
 
@@ -96,7 +97,7 @@ router.get('/', async (req, res) => {
         const skip = (page - 1) * limit;
         const searchQuery = req.query.search;
         
-        const filter = {};
+        const filter = statusFilter(req.query.status);
         if (searchQuery) {
             const regex = new RegExp(escapeRegex(searchQuery), 'i');
             filter.$or = [
@@ -122,6 +123,13 @@ router.get('/', async (req, res) => {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 });
+
+/**
+ * @route   PATCH /api/admin/reviews/bulk-publish
+ * @desc    Publish, or unpublish (Draft), several reviews at once - by selected ids or pasted URLs/slugs
+ * @access  Private (Admin)
+ */
+router.patch('/bulk-publish', bulkPublishHandler(Review, 'review'));
 
 /**
  * @route   DELETE /api/admin/reviews/bulk-delete

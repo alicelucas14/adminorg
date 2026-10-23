@@ -7,6 +7,7 @@ const { OpenAI } = require('openai'); // <-- IMPORT OpenAI
 const { GoogleGenerativeAI } = require('@google/generative-ai'); // <-- IMPORT Gemini
 const { BlogPost } = require('../../models');
 const { escapeRegex } = require('../../lib/escapeRegex');
+const { bulkPublishHandler, statusFilter } = require('../../lib/publishing');
 const { protect } = require('../../middleware/authMiddleware');
 
 router.use(protect);
@@ -105,7 +106,7 @@ router.get('/', async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
         const searchQuery = req.query.search;
-        const filter = {};
+        const filter = statusFilter(req.query.status);
         if (searchQuery) {
             const regex = new RegExp(escapeRegex(searchQuery), 'i');
             filter.$or = [ { 'title.en': regex }, { 'title.hi': regex }, { slug: regex } ];
@@ -119,6 +120,13 @@ router.get('/', async (req, res) => {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 });
+
+/**
+ * @route   PATCH /api/admin/blog/bulk-publish
+ * @desc    Publish, or unpublish (Draft), several posts at once - by selected ids or pasted URLs/slugs
+ * @access  Private (Admin)
+ */
+router.patch('/bulk-publish', bulkPublishHandler(BlogPost, 'post'));
 
 /**
  * @route   DELETE /api/admin/blog/bulk-delete
