@@ -44,6 +44,24 @@
                     </select>
                 </div>
 
+                <!-- Website menu -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="flex items-start">
+                        <input type="checkbox" id="showInMenu" <%= pageData && pageData.showInMenu ? 'checked' : '' %>
+                               class="form-checkbox rounded mt-1">
+                        <label for="showInMenu" class="ml-2 text-sm text-gray-700">
+                            Show in the website menu
+                            <span class="block text-xs text-gray-500 mt-1">Adds the page title as a link in the header menu, the mobile menu and the footer Quick Links (within about a minute). Only while the page is Published. The Hindi menu shows it once the Hindi title and body are real text, not "[HI]" placeholders.</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label for="menuOrder" class="block text-sm font-medium text-gray-700">Menu position</label>
+                        <input type="number" id="menuOrder" step="1" class="form-input"
+                               value="<%= pageData && Number.isFinite(pageData.menuOrder) ? pageData.menuOrder : 0 %>">
+                        <p class="mt-1 text-xs text-gray-500">Lower numbers come first; pages with the same number are sorted by title. They appear after the built-in links (Blog, FAQ...).</p>
+                    </div>
+                </div>
+
                 <!-- English & Hindi Titles -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                      <div>
@@ -546,6 +564,8 @@
             body: { en: easyMDE_en.value(), hi: easyMDE_hi.value() },
             // was hard-coded to true, which re-published a draft page on every save
             isPublished: document.getElementById('isPublished').value === 'true',
+            showInMenu: document.getElementById('showInMenu').checked,
+            menuOrder: parseInt(document.getElementById('menuOrder').value, 10) || 0,
             // SEO Fields
             metaTitle: {
                 en: document.getElementById('meta_title_en').value || '',

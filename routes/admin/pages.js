@@ -153,7 +153,7 @@ router.delete('/bulk-delete', async (req, res) => {
  */
 router.post('/', async (req, res) => {
     const {
-        slug, title, body, isPublished,
+        slug, title, body, isPublished, showInMenu, menuOrder,
         metaTitle, metaDescription, focusKeyword, canonicalUrl, robotsIndex, robotsFollow,
         openGraphTitle, openGraphDescription, openGraphImage, twitterTitle, twitterDescription,
         schemaMarkup
@@ -169,7 +169,7 @@ router.post('/', async (req, res) => {
     }
     try {
         const newPage = new Page({
-            slug, title, body, isPublished,
+            slug, title, body, isPublished, showInMenu, menuOrder,
             metaTitle, metaDescription, focusKeyword, canonicalUrl, robotsIndex, robotsFollow,
             openGraphTitle, openGraphDescription, openGraphImage, twitterTitle, twitterDescription,
             schemaMarkup

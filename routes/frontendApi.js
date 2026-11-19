@@ -273,6 +273,8 @@ router.get('/pages', async (req, res) => {
             title: p.title ? p.title[lang === 'hi' ? 'hi' : 'en'] : '',
             updatedAt: p.updatedAt,
             robotsIndex: p.robotsIndex,
+            showInMenu: p.showInMenu === true,
+            menuOrder: Number.isFinite(p.menuOrder) ? p.menuOrder : 0,
             translated: hasText(p.title && p.title[lang === 'hi' ? 'hi' : 'en']) && hasText(p.body && p.body[lang === 'hi' ? 'hi' : 'en'])
                 && !isPlaceholderLang(p, lang === 'hi' ? 'hi' : 'en', ['title', 'body']),
         }));

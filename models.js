@@ -219,6 +219,9 @@ const pageSchema = new mongoose.Schema({
     // --- END SEO FIELDS ---
 
     isPublished: { type: Boolean, default: true, index: true },
+    // Link to this page from the website's header, mobile menu and footer quick links
+    showInMenu: { type: Boolean, default: false },
+    menuOrder: { type: Number, default: 0 }, // lower = earlier in the menu
     schemaMarkup: { type: String, default: '' }
 }, { timestamps: true });
 
