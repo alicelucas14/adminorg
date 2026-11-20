@@ -70,25 +70,51 @@
 <% } %>
 
 <% if (canRedirect) { %>
-<!-- Redirects: old URLs that 301-redirect to one post -->
+<!-- Redirects: two directions. Tab 1: old URLs that 301 to this item. Tab 2: send this item's URL to another item. -->
 <div id="redirect-dialog" class="hidden fixed inset-0 z-50 bg-black/40 items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="redirect-dialog-title">
     <div class="card w-full max-w-2xl p-6">
-        <h3 id="redirect-dialog-title" class="text-lg font-semibold text-gray-800">Redirects to this <%= noun %></h3>
+        <h3 id="redirect-dialog-title" class="text-lg font-semibold text-gray-800">Redirects for this <%= noun %></h3>
         <p class="mt-1 text-sm text-gray-800 font-medium" id="redirect-dialog-post"></p>
         <p class="text-xs text-gray-500 font-mono" id="redirect-dialog-url"></p>
-        <p class="mt-3 text-sm text-gray-500">
-            Anyone opening one of these old URLs (English or Hindi) is sent to this <%= noun %> with a permanent <strong>301</strong> redirect.
-            Paste URLs or slugs, one per line. Delete a line to stop redirecting that URL.
-            Slugs listed here include the old address from any time you renamed this <%= noun %>.
-        </p>
-        <p id="redirect-dialog-draft-note" class="hidden mt-2 text-sm text-amber-700">
-            This <%= noun %> is a Draft, so its redirects do nothing until it is published.
-        </p>
-        <textarea id="redirect-dialog-input" rows="9" class="form-input mt-4 w-full font-mono text-xs text-gray-800" placeholder="<%= page === 'pages' ? 'https://uu7stars.com/old-page-slug' : 'https://uu7stars.com/blog/old-post-slug' %>&#10;another-old-slug" disabled></textarea>
+
+        <div class="mt-4 flex border-b border-gray-200" role="tablist">
+            <button type="button" id="redirect-tab-in" role="tab" class="px-3 py-2 text-sm font-medium border-b-2 -mb-px">Send old URLs to this <%= noun %></button>
+            <button type="button" id="redirect-tab-out" role="tab" class="px-3 py-2 text-sm font-medium border-b-2 -mb-px">Send this <%= noun %> to another</button>
+        </div>
+
+        <!-- Tab 1: old URLs -> this item -->
+        <div id="redirect-panel-in">
+            <p class="mt-3 text-sm text-gray-500">
+                Anyone opening one of these old URLs (English or Hindi) is sent to this <%= noun %> with a permanent <strong>301</strong> redirect.
+                Paste URLs or slugs, one per line. Delete a line to stop redirecting that URL.
+                Slugs listed here include the old address from any time you renamed this <%= noun %>.
+            </p>
+            <p id="redirect-dialog-draft-note" class="hidden mt-2 text-sm text-amber-700">
+                This <%= noun %> is a Draft, so redirects <em>to</em> it do nothing until it is published. To send a Draft's visitors somewhere else, use the "Send this <%= noun %> to another" tab.
+            </p>
+            <textarea id="redirect-dialog-input" rows="9" class="form-input mt-4 w-full font-mono text-xs text-gray-800 border border-gray-300 rounded-md px-3 py-2" placeholder="<%= page === 'pages' ? 'https://uu7stars.com/old-page-slug' : 'https://uu7stars.com/blog/old-post-slug' %>&#10;another-old-slug" disabled></textarea>
+        </div>
+
+        <!-- Tab 2: this item -> another item -->
+        <div id="redirect-panel-out" class="hidden">
+            <p class="mt-3 text-sm text-gray-500">
+                Anyone opening this <%= noun %>'s address, and any old address it had, is sent to the <%= noun %> you pick, with a permanent <strong>301</strong> redirect.
+                Use this for a duplicate. The <%= noun %> you pick must be published.
+            </p>
+            <input type="text" id="redirect-target-search" autocomplete="off" class="form-input mt-3 w-full border border-gray-300 rounded-md px-3 py-2" placeholder="Search the <%= noun %> to send visitors to (title or slug)...">
+            <p id="redirect-target-hint" class="mt-2 text-xs text-gray-500"></p>
+            <ul id="redirect-target-results" class="hidden mt-2 max-h-48 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-md text-sm"></ul>
+            <p id="redirect-target-selected" class="hidden mt-3 text-sm text-gray-800"></p>
+            <p id="redirect-out-live-note" class="hidden mt-2 text-sm text-amber-700">
+                This <%= noun %> is published. It will be moved to Draft as well, otherwise its own address would keep showing it.
+            </p>
+        </div>
+
         <div id="redirect-dialog-result" class="mt-3 text-sm hidden"></div>
         <div class="mt-4 flex justify-end gap-2">
             <button type="button" id="redirect-dialog-cancel" class="btn btn-secondary border border-gray-300 px-4 py-2">Close</button>
             <button type="button" id="redirect-dialog-save" class="btn btn-primary px-4 py-2" disabled>Save redirects</button>
+            <button type="button" id="redirect-out-go" class="btn btn-primary px-4 py-2 hidden" disabled>Redirect to selected</button>
         </div>
     </div>
 </div>
@@ -189,7 +215,7 @@
 
     // "↪ 3 redirects" pill under the slug; clicking it opens the Redirect dialog. Empty when there are none.
     const redirectBadge = (id, count) => count > 0
-        ? `<button type="button" class="redirect-btn mt-1 inline-flex items-center rounded-full bg-indigo-50 px-2 text-xs font-medium leading-5 text-indigo-700 hover:bg-indigo-100" data-id="${id}" title="View or edit the redirects to this item">↪ ${count} redirect${count === 1 ? '' : 's'}</button>`
+        ? `<button type="button" class="redirect-btn mt-1 inline-flex items-center rounded-full bg-indigo-50 px-2 text-xs font-medium leading-5 text-indigo-700 hover:bg-indigo-100" data-id="${id}" data-tab="in" title="View or edit the redirects to this item">↪ ${count} redirect${count === 1 ? '' : 's'}</button>`
         : '';
 
     const renderTable = (items) => {
@@ -500,17 +526,32 @@
     }
 
     if (canRedirect) {
-        const dialog = document.getElementById('redirect-dialog');
-        const postLabel = document.getElementById('redirect-dialog-post');
-        const postUrl = document.getElementById('redirect-dialog-url');
-        const draftNote = document.getElementById('redirect-dialog-draft-note');
-        const input = document.getElementById('redirect-dialog-input');
-        const result = document.getElementById('redirect-dialog-result');
-        const saveBtn = document.getElementById('redirect-dialog-save');
+        const nounWord = '<%= noun %>';
+        const byId = (id) => document.getElementById(id);
+        const dialog = byId('redirect-dialog');
+        const postLabel = byId('redirect-dialog-post');
+        const postUrl = byId('redirect-dialog-url');
+        const draftNote = byId('redirect-dialog-draft-note');
+        const input = byId('redirect-dialog-input');
+        const result = byId('redirect-dialog-result');
+        const saveBtn = byId('redirect-dialog-save');
+        const tabIn = byId('redirect-tab-in'), tabOut = byId('redirect-tab-out');
+        const panelIn = byId('redirect-panel-in'), panelOut = byId('redirect-panel-out');
+        const searchInput = byId('redirect-target-search');
+        const searchHint = byId('redirect-target-hint');
+        const searchResults = byId('redirect-target-results');
+        const selectedNote = byId('redirect-target-selected');
+        const liveNote = byId('redirect-out-live-note');
+        const goBtn = byId('redirect-out-go');
         let postId = null, savedCount = 0;
+        let targetId = null, targetLabel = '', searchSeq = 0, searchTimer, lastResults = new Map();
 
+        const authHeaders = (extra = {}) => ({ 'Authorization': `Bearer ${getToken()}`, ...extra });
         const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         const showResult = (cls, html) => { result.className = `mt-3 text-sm ${cls}`; result.innerHTML = html; };
+        const skippedHtml = (skipped) => skipped.length
+            ? `<details open class="mt-1"><summary class="cursor-pointer">Skipped (${skipped.length})</summary><ul class="mt-1 text-xs list-disc pl-5">${skipped.map((s) => `<li><span class="font-mono">${escapeHtml(s.slug)}</span> - ${escapeHtml(s.reason)}</li>`).join('')}</ul></details>`
+            : '';
         const closeDialog = () => { dialog.classList.add('hidden'); dialog.classList.remove('flex'); postId = null; };
         const setLoaded = (redirects) => {
             savedCount = redirects.length;
@@ -518,33 +559,76 @@
             input.disabled = false;
             saveBtn.disabled = false;
         };
+        const setDraftState = (isDraft) => {
+            draftNote.classList.toggle('hidden', !isDraft);
+            liveNote.classList.toggle('hidden', isDraft);
+        };
 
-        const openDialog = async (id) => {
-            const item = itemsById.get(id);
-            if (!item) return;
-            postId = id;
-            postLabel.textContent = item.title?.en || item.slug;
-            postUrl.textContent = `${urlPrefix}${item.slug}`;
-            draftNote.classList.toggle('hidden', item.isPublished !== false);
+        const setTab = (tab) => {
+            const out = tab === 'out';
+            panelIn.classList.toggle('hidden', out);
+            panelOut.classList.toggle('hidden', !out);
+            saveBtn.classList.toggle('hidden', out);
+            goBtn.classList.toggle('hidden', !out);
+            for (const [button, active] of [[tabIn, !out], [tabOut, out]]) {
+                button.classList.toggle('border-indigo-600', active);
+                button.classList.toggle('text-indigo-700', active);
+                button.classList.toggle('border-transparent', !active);
+                button.classList.toggle('text-gray-500', !active);
+            }
             result.className = 'hidden';
-            input.value = '';
-            input.disabled = true;
-            saveBtn.disabled = true;
-            dialog.classList.remove('hidden');
-            dialog.classList.add('flex');
+            if (out) searchInput.focus(); else if (!input.disabled) input.focus();
+        };
+
+        const resetTarget = () => {
+            targetId = null;
+            targetLabel = '';
+            lastResults = new Map();
+            searchSeq++;
+            searchInput.value = '';
+            searchResults.innerHTML = '';
+            searchResults.classList.add('hidden');
+            searchHint.textContent = `Type at least 2 letters to search published ${nounWord}s.`;
+            selectedNote.classList.add('hidden');
+            goBtn.disabled = true;
+        };
+
+        const loadRedirects = async (id) => {
             try {
-                const response = await fetch(`${apiEndpoint}/${id}/redirects`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+                const response = await fetch(`${apiEndpoint}/${id}/redirects`, { headers: authHeaders() });
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) throw new Error(data.message || 'Could not load the redirects.');
-                if (postId !== id) return; // dialog was closed or reopened for another post meanwhile
+                if (postId !== id) return; // dialog was closed or reopened for another item meanwhile
                 setLoaded(data.redirects);
-                input.focus();
-                input.setSelectionRange(input.value.length, input.value.length);
+                if (!panelIn.classList.contains('hidden')) {
+                    input.focus();
+                    input.setSelectionRange(input.value.length, input.value.length);
+                }
             } catch (error) {
                 showResult('text-red-600', escapeHtml(error.message));
             }
         };
 
+        // tab: 'in' | 'out' | undefined (a Draft can't receive visitors, so it opens on "send this to another")
+        const openDialog = (id, tab) => {
+            const item = itemsById.get(id);
+            if (!item) return;
+            const isDraft = item.isPublished === false;
+            postId = id;
+            postLabel.textContent = item.title?.en || item.slug;
+            postUrl.textContent = `${urlPrefix}${item.slug}`;
+            setDraftState(isDraft);
+            input.value = '';
+            input.disabled = true;
+            saveBtn.disabled = true;
+            resetTarget();
+            dialog.classList.remove('hidden');
+            dialog.classList.add('flex');
+            setTab(tab || (isDraft ? 'out' : 'in'));
+            loadRedirects(id);
+        };
+
+        // --- tab 1: old URLs -> this item
         const saveRedirects = async () => {
             const id = postId;
             const lines = input.value.split(/[\r\n,\t]+/).map((s) => s.trim()).filter(Boolean);
@@ -553,7 +637,7 @@
             try {
                 const response = await fetch(`${apiEndpoint}/${id}/redirects`, {
                     method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+                    headers: authHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify({ redirects: lines })
                 });
                 const data = await response.json().catch(() => ({}));
@@ -564,10 +648,7 @@
                 if (item) item.redirectCount = data.redirects.length;
                 const slot = document.querySelector(`#row-${id} .redirect-badge-slot`);
                 if (slot) slot.innerHTML = redirectBadge(id, data.redirects.length);
-                const skipped = data.skipped.length
-                    ? `<details open class="mt-1"><summary class="cursor-pointer">Skipped (${data.skipped.length})</summary><ul class="mt-1 text-xs list-disc pl-5">${data.skipped.map((s) => `<li><span class="font-mono">${escapeHtml(s.slug)}</span> - ${escapeHtml(s.reason)}</li>`).join('')}</ul></details>`
-                    : '';
-                showResult(data.skipped.length ? 'text-amber-700' : 'text-green-700', escapeHtml(data.message) + skipped);
+                showResult(data.skipped.length ? 'text-amber-700' : 'text-green-700', escapeHtml(data.message) + skippedHtml(data.skipped));
                 showToast(data.message, data.added.length || data.removed.length || !data.skipped.length ? 'success' : 'error');
             } catch (error) {
                 showToast(`Error: ${error.message}`, 'error');
@@ -575,15 +656,91 @@
             }
         };
 
+        // --- tab 2: this item -> another item
+        const runSearch = async () => {
+            const q = searchInput.value.trim();
+            const seq = ++searchSeq;
+            if (q.length < 2) {
+                searchResults.innerHTML = '';
+                searchResults.classList.add('hidden');
+                searchHint.textContent = `Type at least 2 letters to search published ${nounWord}s.`;
+                return;
+            }
+            searchHint.textContent = 'Searching...';
+            try {
+                const response = await fetch(`${apiEndpoint}?status=published&limit=9&search=${encodeURIComponent(q)}`, { headers: authHeaders() });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.message || 'Search failed.');
+                if (seq !== searchSeq) return; // a newer search is in flight
+                const rows = data.data.filter((p) => String(p._id) !== postId).slice(0, 8);
+                lastResults = new Map(rows.map((p) => [String(p._id), p]));
+                searchHint.textContent = rows.length ? '' : `No published ${nounWord} matches.`;
+                searchResults.classList.toggle('hidden', rows.length === 0);
+                searchResults.innerHTML = rows.map((p) => `<li><button type="button" class="redirect-target-item w-full text-left px-3 py-2 hover:bg-indigo-50 ${String(p._id) === targetId ? 'bg-indigo-100' : ''}" data-id="${p._id}"><span class="block font-medium text-gray-800">${escapeHtml(p.title?.en || p.slug)}</span><span class="block text-xs text-gray-500 font-mono">${escapeHtml(p.slug)}</span></button></li>`).join('');
+            } catch (error) {
+                if (seq === searchSeq) searchHint.textContent = error.message;
+            }
+        };
+
+        const pickTarget = (id) => {
+            const p = lastResults.get(id);
+            if (!p) return;
+            targetId = id;
+            targetLabel = p.title?.en || p.slug;
+            selectedNote.innerHTML = `Send visitors to: <strong>${escapeHtml(targetLabel)}</strong> <span class="text-xs text-gray-500 font-mono">${urlPrefix}${escapeHtml(p.slug)}</span>`;
+            selectedNote.classList.remove('hidden');
+            goBtn.disabled = false;
+            searchResults.querySelectorAll('.redirect-target-item').forEach((b) => b.classList.toggle('bg-indigo-100', b.dataset.id === id));
+        };
+
+        const redirectToTarget = async () => {
+            const id = postId;
+            if (!id || !targetId) return;
+            const item = itemsById.get(id);
+            const live = item ? item.isPublished !== false : true;
+            const question = live
+                ? `Send this ${nounWord}'s URL to "${targetLabel}" and move this ${nounWord} to Draft? It disappears from the website; nothing is deleted.`
+                : `Send this ${nounWord}'s URL to "${targetLabel}"?`;
+            if (!confirm(question)) return;
+            goBtn.disabled = true;
+            try {
+                const response = await fetch(`${apiEndpoint}/${id}/redirect-to`, {
+                    method: 'PUT',
+                    headers: authHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ targetId, unpublish: live })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.message || 'Failed to redirect.');
+                if (postId !== id) { fetchContent(currentPage); return; }
+                showResult(data.skipped.length ? 'text-amber-700' : 'text-green-700', escapeHtml(data.message) + skippedHtml(data.skipped));
+                showToast(data.message, 'success');
+                setDraftState(true);
+                resetTarget();
+                loadRedirects(id);          // this item's own list is now empty: its URLs moved to the target
+                fetchContent(currentPage);  // status + badges changed on both rows
+            } catch (error) {
+                showToast(`Error: ${error.message}`, 'error');
+                goBtn.disabled = false;
+            }
+        };
+
         tableBody.addEventListener('click', (e) => {
             const button = e.target.closest('.redirect-btn');
-            if (button) openDialog(button.dataset.id);
+            if (button) openDialog(button.dataset.id, button.dataset.tab);
         });
-        document.getElementById('redirect-filter').addEventListener('change', (e) => {
+        byId('redirect-filter').addEventListener('change', (e) => {
             currentRedirectsOnly = e.target.checked;
             fetchContent(1);
         });
-        document.getElementById('redirect-dialog-cancel').addEventListener('click', closeDialog);
+        tabIn.addEventListener('click', () => setTab('in'));
+        tabOut.addEventListener('click', () => setTab('out'));
+        searchInput.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 250); });
+        searchResults.addEventListener('click', (e) => {
+            const button = e.target.closest('.redirect-target-item');
+            if (button) pickTarget(button.dataset.id);
+        });
+        goBtn.addEventListener('click', redirectToTarget);
+        byId('redirect-dialog-cancel').addEventListener('click', closeDialog);
         saveBtn.addEventListener('click', saveRedirects);
         dialog.addEventListener('click', (e) => { if (e.target === dialog) closeDialog(); });
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !dialog.classList.contains('hidden')) closeDialog(); });

@@ -20,16 +20,18 @@ router.use(adminOnly);
 // --- Dashboard and other routes are unchanged ---
 router.get('/dashboard', async (request, response) => {
     try {
-        const [ gameCount, postCount, reviewCount, promotionCount, brokenLinksCount, recentGames, recentPosts ] = await Promise.all([
+        // "Live" = what the website serves (the public API only returns isPublished: true); the rest are drafts.
+        const [ gameCount, postCount, livePostCount, reviewCount, promotionCount, brokenLinksCount, recentGames, recentPosts ] = await Promise.all([
             Game.countDocuments(),
             BlogPost.countDocuments(),
+            BlogPost.countDocuments({ isPublished: true }),
             Review.countDocuments(),
             Promotion.countDocuments(),
             LinkCheckResult.countDocuments({ status: 'broken' }),
             Game.find({}).sort({ createdAt: -1 }).limit(5).select('name.en gameId createdAt _id'),
-            BlogPost.find({}).sort({ publishedAt: -1 }).limit(5).select('title.en slug publishedAt _id')
+            BlogPost.find({ isPublished: true }).sort({ publishedAt: -1 }).limit(5).select('title.en slug publishedAt _id')
         ]);
-        response.render('dashboard', { user: request.user, counts: { games: gameCount, posts: postCount, reviews: reviewCount, promotions: promotionCount, brokenLinks: brokenLinksCount }, recentItems: { games: recentGames, posts: recentPosts }, page: 'dashboard', title: 'Dashboard', frontendUrl: frontendUrl });
+        response.render('dashboard', { user: request.user, counts: { games: gameCount, posts: livePostCount, postDrafts: postCount - livePostCount, reviews: reviewCount, promotions: promotionCount, brokenLinks: brokenLinksCount }, recentItems: { games: recentGames, posts: recentPosts }, page: 'dashboard', title: 'Dashboard', frontendUrl: frontendUrl });
     } catch (error) {
         response.status(500).send('Server Error');
     }

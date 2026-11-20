@@ -23,8 +23,11 @@
             <i class="ri-article-line text-3xl"></i>
         </div>
         <div>
-            <p class="text-gray-500 text-sm font-medium">Blog Posts</p>
+            <p class="text-gray-500 text-sm font-medium">Live Blog Posts</p>
             <p class="text-3xl font-bold text-gray-800"><%= counts.posts %></p>
+            <% if (counts.postDrafts > 0) { %>
+            <p class="text-xs text-gray-500"><%= counts.postDrafts %> draft<%= counts.postDrafts === 1 ? '' : 's' %> not live</p>
+            <% } %>
         </div>
     </div>
 
@@ -97,7 +100,7 @@
     <!-- Recent Blog Posts Card -->
     <div class="card">
         <div class="p-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-800">Recent Blog Posts</h2>
+            <h2 class="text-lg font-semibold text-gray-800">Recent Live Blog Posts</h2>
         </div>
         <div class="p-4">
             <% if (recentItems.posts && recentItems.posts.length > 0) { %>
@@ -115,7 +118,7 @@
                     <% }); %>
                 </ul>
             <% } else { %>
-                <p class="text-gray-500 text-center py-4">No recent blog posts found.</p>
+                <p class="text-gray-500 text-center py-4">No live blog posts yet.</p>
             <% } %>
         </div>
         <div class="p-3 bg-gray-50 border-t border-gray-200 text-center rounded-b-lg">
