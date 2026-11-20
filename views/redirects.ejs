@@ -20,6 +20,7 @@
         <div>
             <label for="add-froms" class="block text-sm font-medium text-gray-700">Old addresses (one per line, up to 500)</label>
             <textarea id="add-froms" rows="6" class="form-input mt-1 w-full font-mono text-xs text-gray-800 border border-gray-300 rounded-md px-3 py-2" placeholder="https://uu7stars.com/blog/old-post&#10;/blog/another-old-post"></textarea>
+            <div id="add-check" class="mt-2 text-sm hidden" aria-live="polite"></div>
         </div>
         <div>
             <label for="add-to" class="block text-sm font-medium text-gray-700">Send them to</label>
@@ -119,7 +120,7 @@
         tableBody.innerHTML = rows.map((r) => `
             <tr id="row-${r._id}">
                 <td class="p-4"><input type="checkbox" class="row-check form-checkbox" data-id="${r._id}"></td>
-                <td class="px-6 py-4 text-sm font-mono text-gray-900 break-all">${escapeHtml(r.from)}</td>
+                <td class="px-6 py-4 text-sm font-mono text-gray-900 break-all">${escapeHtml(r.from)}<div class="addr-status mt-1 font-sans" data-from="${escapeHtml(r.from)}"><span class="text-xs text-gray-400">Checking...</span></div></td>
                 <td class="px-6 py-4 text-sm font-mono text-gray-700 break-all">${escapeHtml(r.to)}</td>
                 <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.status === 302 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">${r.status === 302 ? 'Temporary (302)' : 'Permanent (301)'}</span></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(r.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
@@ -129,6 +130,66 @@
                 </td>
             </tr>`).join('');
     };
+
+    // --- what the live website does with an address (POST /check asks the website itself)
+    const pill = (cls, text, tip) => `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${cls}" title="${escapeHtml(tip)}">${escapeHtml(text)}</span>`;
+    const rowBadge = (v) => {
+        switch (v.verdict) {
+            case 'live': return pill('bg-amber-100 text-amber-800', 'Not used: this is a live page', 'This address is a live page on the website, so the redirect is never used. Unpublish or delete that page first (for a blog post or page: Redirect > "Send this post to a link").');
+            case 'elsewhere': return pill('bg-amber-100 text-amber-800', 'Not used: already redirects elsewhere', `The website already redirects this address${v.location ? ` to ${v.location}` : ''} (for example an old post address), so this redirect is not used.`);
+            case 'working': return pill('bg-green-100 text-green-800', 'Working', 'The website redirects this address as set here.');
+            case 'waiting': return pill('bg-gray-100 text-gray-600', 'Not applied yet', 'The website picks up new redirects within about a minute. Reload this page to check again.');
+            default: return '';
+        }
+    };
+    let checkRun = 0;
+    const checkRows = async (rows) => {
+        const run = ++checkRun;
+        for (let i = 0; i < rows.length; i += 5) {
+            if (run !== checkRun) return; // the list was reloaded meanwhile
+            const chunk = rows.slice(i, i + 5);
+            let results = [];
+            try { results = (await api('/check', { method: 'POST', body: JSON.stringify({ froms: chunk.map((r) => r.from), includeHindi: false }) })).results; } catch { /* leave the badges empty */ }
+            if (run !== checkRun) return;
+            const byFrom = new Map(results.map((v) => [v.from, v]));
+            chunk.forEach((r) => {
+                const cell = Array.from(document.querySelectorAll('.addr-status')).find((el) => el.dataset.from === r.from);
+                if (cell) cell.innerHTML = byFrom.has(r.from) ? rowBadge(byFrom.get(r.from)) : '';
+            });
+        }
+    };
+
+    // Warn, before saving, about addresses a redirect would never apply to.
+    const addChecks = document.getElementById('add-check');
+    const addFromsBox = document.getElementById('add-froms');
+    let addCheckTimer, addCheckRun = 0;
+    const parseFroms = () => addFromsBox.value.split(/[\r\n,\t]+/).map((s) => s.trim()).filter(Boolean);
+    const runAddCheck = async () => {
+        const froms = parseFroms();
+        const run = ++addCheckRun;
+        if (!froms.length) { addChecks.classList.add('hidden'); addChecks.innerHTML = ''; return; }
+        addChecks.className = 'mt-2 text-sm text-gray-400';
+        addChecks.textContent = 'Checking these addresses on the website...';
+        let data;
+        try { data = await api('/check', { method: 'POST', body: JSON.stringify({ froms: froms.slice(0, 500), includeHindi: document.getElementById('add-hindi').checked }) }); }
+        catch { if (run === addCheckRun) { addChecks.classList.add('hidden'); } return; }
+        if (run !== addCheckRun) return;
+        const live = data.results.filter((v) => v.verdict === 'live');
+        const elsewhere = data.results.filter((v) => v.verdict === 'elsewhere');
+        const parts = [];
+        if (live.length) parts.push(`<p class="font-semibold">${live.length === 1 ? 'This address is a live page' : `${live.length} of these addresses are live pages`}, so a redirect from ${live.length === 1 ? 'it' : 'them'} will not be used:</p>
+            <ul class="mt-1 text-xs font-mono list-disc pl-5 break-all">${live.map((v) => `<li>${escapeHtml(v.from)}</li>`).join('')}</ul>
+            <p class="mt-1">Unpublish or delete ${live.length === 1 ? 'that page' : 'those pages'} first. For a blog post or page, open its Redirect button and use "Send this post to a link": it unpublishes the post and redirects it in one step.</p>`);
+        if (elsewhere.length) parts.push(`<p class="${live.length ? 'mt-2 ' : ''}font-semibold">${elsewhere.length === 1 ? 'This address already redirects somewhere else' : `${elsewhere.length} addresses already redirect somewhere else`} (for example an old post address), so this redirect will not be used:</p>
+            <ul class="mt-1 text-xs font-mono list-disc pl-5 break-all">${elsewhere.map((v) => `<li>${escapeHtml(v.from)} &rarr; ${escapeHtml(v.location || '?')}</li>`).join('')}</ul>`);
+        if (data.total > data.checked) parts.push(`<p class="mt-2 text-xs">Only the first ${data.checked} of ${data.total} addresses were checked.</p>`);
+        if (!parts.length) { addChecks.classList.add('hidden'); addChecks.innerHTML = ''; return; }
+        addChecks.className = 'mt-2 text-sm rounded-md border border-amber-300 bg-amber-50 text-amber-900 p-3';
+        addChecks.innerHTML = parts.join('');
+    };
+    const scheduleAddCheck = () => { clearTimeout(addCheckTimer); addCheckTimer = setTimeout(runAddCheck, 800); };
+    addFromsBox.addEventListener('input', scheduleAddCheck);
+    document.getElementById('add-hindi').addEventListener('change', scheduleAddCheck);
 
     const renderPagination = (totalItems) => {
         const pagination = document.getElementById('pagination');
@@ -155,6 +216,7 @@
             totalPages = data.totalPages;
             render(data.data);
             renderPagination(data.totalItems);
+            checkRows(data.data);
         } catch (error) {
             tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-red-500">${escapeHtml(error.message)}</td></tr>`;
         }
@@ -178,7 +240,10 @@
             addResult.className = `mt-4 text-sm ${result.skipped.length ? 'text-amber-700' : 'text-green-700'}`;
             addResult.innerHTML = `${escapeHtml(result.message)} Destination: <span class="font-mono">${escapeHtml(result.to)}</span>${skipped}`;
             showToast(result.message, result.created || result.updated || !result.skipped.length ? 'success' : 'error');
-            if (!result.skipped.length) document.getElementById('add-froms').value = '';
+            if (!result.skipped.length) {
+                document.getElementById('add-froms').value = '';
+                clearTimeout(addCheckTimer); addCheckRun++; addChecks.classList.add('hidden'); addChecks.innerHTML = ''; // the list below now shows each new rule's status
+            }
             load(1);
         } catch (error) {
             addResult.className = 'mt-4 text-sm text-red-600';

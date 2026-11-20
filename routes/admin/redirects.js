@@ -7,7 +7,8 @@ const mongoose = require('mongoose');
 const router = express.Router();
 const { LinkRedirect } = require('../../models');
 const { escapeRegex } = require('../../lib/escapeRegex');
-const { normalizeTo, normalizeFrom, saveLinkRedirects, MAX_FROMS } = require('../../lib/linkRedirects');
+const { normalizeTo, normalizeFrom, saveLinkRedirects, expandAddresses, MAX_FROMS } = require('../../lib/linkRedirects');
+const { checkAddresses, MAX_CHECK } = require('../../lib/addressStatus');
 const { protect } = require('../../middleware/authMiddleware');
 
 router.use(protect);
@@ -39,6 +40,29 @@ router.get('/', async (req, res) => {
             LinkRedirect.countDocuments(filter),
         ]);
         res.json({ data, totalItems, currentPage: page, totalPages: Math.ceil(totalItems / limit) });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   POST /api/admin/redirects/check
+ * @body    { froms: string[], includeHindi?: boolean }
+ * @desc    Asks the live website what each address does right now, so the screen can warn that a redirect
+ *          would never be used (the address is a live page, or something else already redirects it).
+ *          verdict: live | working | elsewhere | waiting | free | unknown (see lib/addressStatus.js).
+ *          At most MAX_CHECK addresses are checked per call; `total` says how many there were.
+ */
+router.post('/check', async (req, res) => {
+    try {
+        const froms = Array.isArray(req.body && req.body.froms) ? req.body.froms : [];
+        if (!froms.length) return res.status(400).json({ message: 'Enter at least one address.' });
+        if (froms.length > MAX_FROMS) return res.status(400).json({ message: `At most ${MAX_FROMS} addresses at a time.` });
+        const all = expandAddresses(froms, req.body.includeHindi !== false);
+        const addresses = all.slice(0, MAX_CHECK);
+        const rules = await LinkRedirect.find({ from: { $in: addresses } }).lean();
+        const results = await checkAddresses(addresses, new Map(rules.map((r) => [r.from, r])));
+        res.json({ results, checked: addresses.length, total: all.length });
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
