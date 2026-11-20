@@ -7,6 +7,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { Page } = require('../../models');
 const { escapeRegex } = require('../../lib/escapeRegex');
 const { bulkPublishHandler, statusFilter } = require('../../lib/publishing');
+const { redirectHandlers, withRedirectCounts, redirectFilter } = require('../../lib/redirects');
 const { protect } = require('../../middleware/authMiddleware');
 
 router.use(protect);
@@ -103,7 +104,7 @@ router.get('/', async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
         const searchQuery = req.query.search;
-        const filter = statusFilter(req.query.status);
+        const filter = { ...statusFilter(req.query.status), ...redirectFilter(req.query.redirects) };
         if (searchQuery) {
             const regex = new RegExp(escapeRegex(searchQuery), 'i');
             filter.$or = [ { 'title.en': regex }, { 'title.hi': regex }, { slug: regex } ];
@@ -112,7 +113,7 @@ router.get('/', async (req, res) => {
             Page.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
             Page.countDocuments(filter)
         ]);
-        res.json({ data: pages, totalItems, currentPage: page, totalPages: Math.ceil(totalItems / limit) });
+        res.json({ data: await withRedirectCounts(Page, pages), totalItems, currentPage: page, totalPages: Math.ceil(totalItems / limit) });
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
@@ -211,6 +212,15 @@ router.put('/:id', async (req, res) => {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 });
+
+/**
+ * @route   GET|PUT /api/admin/pages/:id/redirects
+ * @desc    The old URLs/slugs that 301-redirect to this page, and replacing that list
+ * @access  Private (Admin)
+ */
+const pageRedirects = redirectHandlers(Page);
+router.get('/:id/redirects', pageRedirects.list);
+router.put('/:id/redirects', pageRedirects.save);
 
 /**
  * @route   DELETE /api/admin/pages/:id

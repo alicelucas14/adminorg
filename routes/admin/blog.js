@@ -8,6 +8,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai'); // <-- IMPORT G
 const { BlogPost } = require('../../models');
 const { escapeRegex } = require('../../lib/escapeRegex');
 const { bulkPublishHandler, statusFilter } = require('../../lib/publishing');
+const { redirectHandlers, withRedirectCounts, redirectFilter } = require('../../lib/redirects');
 const { protect } = require('../../middleware/authMiddleware');
 
 router.use(protect);
@@ -106,7 +107,7 @@ router.get('/', async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
         const searchQuery = req.query.search;
-        const filter = statusFilter(req.query.status);
+        const filter = { ...statusFilter(req.query.status), ...redirectFilter(req.query.redirects) };
         if (searchQuery) {
             const regex = new RegExp(escapeRegex(searchQuery), 'i');
             filter.$or = [ { 'title.en': regex }, { 'title.hi': regex }, { slug: regex } ];
@@ -115,7 +116,7 @@ router.get('/', async (req, res) => {
             BlogPost.find(filter).sort({ publishedAt: -1 }).skip(skip).limit(limit),
             BlogPost.countDocuments(filter)
         ]);
-        res.json({ data: posts, totalItems, currentPage: page, totalPages: Math.ceil(totalItems / limit) });
+        res.json({ data: await withRedirectCounts(BlogPost, posts), totalItems, currentPage: page, totalPages: Math.ceil(totalItems / limit) });
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
@@ -214,6 +215,15 @@ router.put('/:id', async (req, res) => {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 });
+
+/**
+ * @route   GET|PUT /api/admin/blog/:id/redirects
+ * @desc    The old URLs/slugs that 301-redirect to this post, and replacing that list
+ * @access  Private (Admin)
+ */
+const blogRedirects = redirectHandlers(BlogPost);
+router.get('/:id/redirects', blogRedirects.list);
+router.put('/:id/redirects', blogRedirects.save);
 
 /**
  * @route   DELETE /api/admin/blog/:id
