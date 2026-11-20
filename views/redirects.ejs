@@ -1,0 +1,230 @@
+<!-- backend/views/redirects.ejs -->
+<!-- Link redirects: any address on the website -> any page on the site or an outside link -->
+
+<%- include('partials/_header') %>
+<%- include('partials/_sidebar') %>
+
+<div class="mb-6">
+    <h2 class="text-3xl font-bold text-gray-800">Redirects</h2>
+    <p class="text-gray-500 mt-1">
+        Send an old address to any page on this site or to another website.
+        A redirect only applies when the address would otherwise show "page not found", so it never hides a live page.
+        Changes reach the website within about a minute.
+    </p>
+</div>
+
+<!-- Add redirects -->
+<div class="card p-6 mb-6">
+    <h3 class="text-lg font-semibold text-gray-800">Add redirects</h3>
+    <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+            <label for="add-froms" class="block text-sm font-medium text-gray-700">Old addresses (one per line, up to 500)</label>
+            <textarea id="add-froms" rows="6" class="form-input mt-1 w-full font-mono text-xs text-gray-800 border border-gray-300 rounded-md px-3 py-2" placeholder="https://uu7stars.com/blog/old-post&#10;/blog/another-old-post"></textarea>
+        </div>
+        <div>
+            <label for="add-to" class="block text-sm font-medium text-gray-700">Send them to</label>
+            <input type="text" id="add-to" autocomplete="off" class="form-input mt-1 w-full border border-gray-300 rounded-md px-3 py-2" placeholder="/blog/   or   https://example.com/page">
+            <p class="mt-1 text-xs text-gray-500">A page on this site (starting with /) or a full link to another website.</p>
+            <label for="add-status" class="block text-sm font-medium text-gray-700 mt-4">Type</label>
+            <select id="add-status" class="form-select mt-1 w-full border border-gray-300 rounded-md px-3 py-2">
+                <option value="301">Permanent (301) - the old address is gone for good</option>
+                <option value="302">Temporary (302) - the old address may come back</option>
+            </select>
+            <label class="mt-4 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" id="add-hindi" class="form-checkbox" checked>
+                Also redirect the Hindi version (addresses starting with /hi)
+            </label>
+        </div>
+    </div>
+    <div id="add-result" class="mt-4 text-sm hidden"></div>
+    <div class="mt-4 flex justify-end">
+        <button type="button" id="add-btn" class="btn btn-primary px-4 py-2">Add redirects</button>
+    </div>
+</div>
+
+<!-- Search -->
+<div class="mb-4 card p-4">
+    <div class="relative w-full max-w-sm">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="ri-search-line text-gray-400"></i>
+        </div>
+        <input type="text" id="search-input" placeholder="Search old or new address..." class="form-input !mt-0 pl-10 w-full">
+    </div>
+</div>
+
+<!-- Bulk delete -->
+<div id="bulk-bar" class="hidden mb-4 bg-primary-50 border border-primary-200 p-3 rounded-lg flex items-center justify-between">
+    <span id="selection-count" class="text-sm font-semibold text-primary-800"></span>
+    <button type="button" id="bulk-delete-btn" class="btn btn-secondary border border-gray-300 px-4 py-2 text-red-600">Delete selected</button>
+</div>
+
+<!-- Table -->
+<div class="card overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th scope="col" class="p-4"><input type="checkbox" id="select-all" class="form-checkbox"></th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Old address</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent to</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Added</th>
+                <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody id="table-body" class="bg-white divide-y divide-gray-200">
+            <tr><td colspan="6" class="px-6 py-12 text-center text-gray-500">Loading...</td></tr>
+        </tbody>
+    </table>
+    <div id="pagination" class="p-4 flex items-center justify-between border-t border-gray-200"></div>
+</div>
+
+<script>
+    const apiEndpoint = '<%= apiEndpoint %>';
+    const getToken = () => document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] || null;
+    const authHeaders = (extra = {}) => ({ 'Authorization': `Bearer ${getToken()}`, ...extra });
+    const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    const tableBody = document.getElementById('table-body');
+    const searchInput = document.getElementById('search-input');
+    const bulkBar = document.getElementById('bulk-bar');
+    const selectionCount = document.getElementById('selection-count');
+    const selectAll = document.getElementById('select-all');
+    const addResult = document.getElementById('add-result');
+    const addBtn = document.getElementById('add-btn');
+    let currentPage = 1, totalPages = 1, currentSearch = '', debounceTimer;
+    const selected = new Set();
+    let rowsById = new Map();
+
+    const api = async (path, options = {}) => {
+        const response = await fetch(`${apiEndpoint}${path}`, { ...options, headers: authHeaders(options.body ? { 'Content-Type': 'application/json' } : {}) });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) { window.location.href = '<%= adminBase %>'; throw new Error('Please sign in again.'); }
+        if (!response.ok) throw new Error(data.message || 'Something went wrong.');
+        return data;
+    };
+
+    const updateBulkBar = () => {
+        bulkBar.classList.toggle('hidden', selected.size === 0);
+        selectionCount.textContent = `${selected.size} selected`;
+        const boxes = document.querySelectorAll('.row-check');
+        selectAll.checked = boxes.length > 0 && Array.from(boxes).every((b) => b.checked);
+    };
+
+    const render = (rows) => {
+        rowsById = new Map(rows.map((r) => [r._id, r]));
+        if (!rows.length) {
+            tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-gray-500">${currentSearch ? 'No redirects match.' : 'No redirects yet. Add one above.'}</td></tr>`;
+            return;
+        }
+        tableBody.innerHTML = rows.map((r) => `
+            <tr id="row-${r._id}">
+                <td class="p-4"><input type="checkbox" class="row-check form-checkbox" data-id="${r._id}"></td>
+                <td class="px-6 py-4 text-sm font-mono text-gray-900 break-all">${escapeHtml(r.from)}</td>
+                <td class="px-6 py-4 text-sm font-mono text-gray-700 break-all">${escapeHtml(r.to)}</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.status === 302 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">${r.status === 302 ? 'Temporary (302)' : 'Permanent (301)'}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(r.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                    <button class="text-primary-600 hover:text-primary-900 edit-btn font-medium" data-id="${r._id}">Change</button>
+                    <button class="text-red-600 hover:text-red-900 delete-btn font-medium" data-id="${r._id}">Delete</button>
+                </td>
+            </tr>`).join('');
+    };
+
+    const renderPagination = (totalItems) => {
+        const pagination = document.getElementById('pagination');
+        if (totalPages <= 1) { pagination.innerHTML = totalItems ? `<p class="text-sm text-gray-700">${totalItems} redirect(s)</p>` : ''; return; }
+        pagination.innerHTML = `
+            <p class="text-sm text-gray-700">${totalItems} redirects</p>
+            <nav class="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button id="prev-page" class="px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50" ${currentPage === 1 ? 'disabled' : ''}>Prev</button>
+                <span class="px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">Page ${currentPage} of ${totalPages}</span>
+                <button id="next-page" class="px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+            </nav>`;
+        document.getElementById('prev-page').onclick = () => load(currentPage - 1);
+        document.getElementById('next-page').onclick = () => load(currentPage + 1);
+    };
+
+    const load = async (page = 1) => {
+        selected.clear();
+        updateBulkBar();
+        try {
+            let query = `?page=${page}&limit=20`;
+            if (currentSearch) query += `&search=${encodeURIComponent(currentSearch)}`;
+            const data = await api(query);
+            currentPage = data.currentPage;
+            totalPages = data.totalPages;
+            render(data.data);
+            renderPagination(data.totalItems);
+        } catch (error) {
+            tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-red-500">${escapeHtml(error.message)}</td></tr>`;
+        }
+    };
+
+    // --- add
+    addBtn.addEventListener('click', async () => {
+        const froms = document.getElementById('add-froms').value.split(/[\r\n,\t]+/).map((s) => s.trim()).filter(Boolean);
+        const to = document.getElementById('add-to').value.trim();
+        if (!froms.length) { showToast('Enter at least one old address.', 'error'); return; }
+        if (!to) { showToast('Enter the link to send them to.', 'error'); return; }
+        addBtn.disabled = true;
+        try {
+            const result = await api('', {
+                method: 'POST',
+                body: JSON.stringify({ froms, to, status: Number(document.getElementById('add-status').value), includeHindi: document.getElementById('add-hindi').checked })
+            });
+            const skipped = result.skipped.length
+                ? `<details open class="mt-1"><summary class="cursor-pointer">Skipped (${result.skipped.length})</summary><ul class="mt-1 text-xs list-disc pl-5">${result.skipped.map((s) => `<li><span class="font-mono">${escapeHtml(s.from)}</span> - ${escapeHtml(s.reason)}</li>`).join('')}</ul></details>`
+                : '';
+            addResult.className = `mt-4 text-sm ${result.skipped.length ? 'text-amber-700' : 'text-green-700'}`;
+            addResult.innerHTML = `${escapeHtml(result.message)} Destination: <span class="font-mono">${escapeHtml(result.to)}</span>${skipped}`;
+            showToast(result.message, result.created || result.updated || !result.skipped.length ? 'success' : 'error');
+            if (!result.skipped.length) document.getElementById('add-froms').value = '';
+            load(1);
+        } catch (error) {
+            addResult.className = 'mt-4 text-sm text-red-600';
+            addResult.textContent = error.message;
+        } finally {
+            addBtn.disabled = false;
+        }
+    });
+
+    // --- table actions
+    tableBody.addEventListener('click', async (e) => {
+        const id = e.target.dataset && e.target.dataset.id;
+        if (e.target.classList.contains('row-check')) {
+            if (e.target.checked) selected.add(id); else selected.delete(id);
+            updateBulkBar();
+        }
+        if (e.target.classList.contains('delete-btn')) {
+            const row = rowsById.get(id);
+            if (!confirm(`Delete the redirect for ${row ? row.from : 'this address'}? That address will show "page not found" again.`)) return;
+            try { showToast((await api(`/${id}`, { method: 'DELETE' })).message, 'success'); load(currentPage); }
+            catch (error) { showToast(`Error: ${error.message}`, 'error'); }
+        }
+        if (e.target.classList.contains('edit-btn')) {
+            const row = rowsById.get(id);
+            const to = prompt(`Send ${row.from} to:`, row.to);
+            if (to === null || !to.trim() || to.trim() === row.to) return;
+            try { showToast((await api(`/${id}`, { method: 'PUT', body: JSON.stringify({ to: to.trim(), status: row.status }) })).message, 'success'); load(currentPage); }
+            catch (error) { showToast(`Error: ${error.message}`, 'error'); }
+        }
+    });
+    selectAll.addEventListener('change', (e) => {
+        document.querySelectorAll('.row-check').forEach((b) => { b.checked = e.target.checked; if (e.target.checked) selected.add(b.dataset.id); else selected.delete(b.dataset.id); });
+        updateBulkBar();
+    });
+    document.getElementById('bulk-delete-btn').addEventListener('click', async () => {
+        if (!confirm(`Delete ${selected.size} redirect(s)? Those addresses will show "page not found" again.`)) return;
+        try { showToast((await api('/bulk', { method: 'DELETE', body: JSON.stringify({ ids: Array.from(selected) }) })).message, 'success'); load(currentPage); }
+        catch (error) { showToast(`Error: ${error.message}`, 'error'); }
+    });
+    searchInput.addEventListener('keyup', (e) => {
+        clearTimeout(debounceTimer);
+        const term = e.target.value.trim();
+        debounceTimer = setTimeout(() => { if (term !== currentSearch) { currentSearch = term; load(1); } }, 300);
+    });
+
+    load(1);
+</script>
+
+<%- include('partials/_footer') %>

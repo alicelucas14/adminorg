@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Promotion, Setting, Game, BlogPost, Review, Page, PopupBanner } = require('../models');
+const { Promotion, Setting, Game, BlogPost, Review, Page, PopupBanner, LinkRedirect } = require('../models');
 const { requireApiKey } = require('../middleware/apiKeyMiddleware');
 
 // Protect all routes in this file with the API Key middleware.
@@ -341,6 +341,20 @@ router.get('/slug-redirect/:type/:slug', async (req, res) => {
         res.json({ slug: doc.slug });
     } catch (err) {
         res.status(500).json({ message: 'Server error while resolving slug redirect.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/redirects
+ * @desc    Every link redirect as [{ from, to, status }]. The website keeps this list in memory and uses it
+ *          only for URLs that would otherwise be a 404. `from` is normalised (lowercase path, no trailing slash).
+ * @access  Private (API Key)
+ */
+router.get('/redirects', async (req, res) => {
+    try {
+        res.json(await LinkRedirect.find({}).select('from to status -_id').lean());
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while fetching redirects.' });
     }
 });
 

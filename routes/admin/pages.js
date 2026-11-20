@@ -218,10 +218,11 @@ router.put('/:id', async (req, res) => {
  * @desc    The old URLs/slugs that 301-redirect to this page, and replacing that list
  * @access  Private (Admin)
  */
-const pageRedirects = redirectHandlers(Page, 'page');
+const pageRedirects = redirectHandlers(Page, 'page', '/');
 router.get('/:id/redirects', pageRedirects.list);
 router.put('/:id/redirects', pageRedirects.save);
 router.put('/:id/redirect-to', pageRedirects.redirectTo); // this page's URL -> another page
+router.put('/:id/redirect-link', pageRedirects.redirectToLink); // this page's URL -> any link
 
 /**
  * @route   DELETE /api/admin/pages/:id

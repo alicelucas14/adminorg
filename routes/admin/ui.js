@@ -82,6 +82,11 @@ router.get('/pages/new', (req, res) => res.render('edit-page', { user: req.user,
 router.get('/pages/edit/:id', async (req, res) => { try { const pageData = await Page.findById(req.params.id); if (!pageData) return res.status(404).send('Page not found'); res.render('edit-page', { user: req.user, page: 'pages', title: 'Edit Page', pageData, apiEndpoint: `/api/admin/pages/${pageData._id}`, frontendUrl }); } catch (e) { res.status(500).send('Server Error'); } });
 
 //==============================================
+// REDIRECTS UI ROUTE (link redirects: any address -> any page or outside link)
+//==============================================
+router.get('/redirects', (req, res) => res.render('redirects', { user: req.user, page: 'redirects', title: 'Redirects', apiEndpoint: '/api/admin/redirects', frontendUrl }));
+
+//==============================================
 // LINK CHECKER UI ROUTE
 //==============================================
 router.get('/link-checker', async (req, res) => {

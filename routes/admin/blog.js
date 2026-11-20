@@ -221,10 +221,11 @@ router.put('/:id', async (req, res) => {
  * @desc    The old URLs/slugs that 301-redirect to this post, and replacing that list
  * @access  Private (Admin)
  */
-const blogRedirects = redirectHandlers(BlogPost, 'post');
+const blogRedirects = redirectHandlers(BlogPost, 'post', '/blog/');
 router.get('/:id/redirects', blogRedirects.list);
 router.put('/:id/redirects', blogRedirects.save);
 router.put('/:id/redirect-to', blogRedirects.redirectTo); // this post's URL -> another post
+router.put('/:id/redirect-link', blogRedirects.redirectToLink); // this post's URL -> any link
 
 /**
  * @route   DELETE /api/admin/blog/:id

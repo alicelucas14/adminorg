@@ -23,6 +23,7 @@ const adminUploadRoutes = require('./routes/admin/upload');
 const adminCommentRoutes = require('./routes/admin/comments');
 const adminBlogCommentRoutes = require('./routes/admin/blog-comments'); // <-- IMPORT new admin route
 const adminPageRoutes = require('./routes/admin/pages');
+const adminRedirectRoutes = require('./routes/admin/redirects');
 const adminLinkCheckerRoutes = require('./routes/admin/linkChecker');
 const adminPopupBannerRoutes = require('./routes/admin/popup-banners'); // <-- IMPORT popup-banners route
 const adminUserRoutes = require('./routes/admin/users'); // <-- IMPORT user management route
@@ -75,6 +76,7 @@ app.use('/api/admin/upload', protect, adminOnly, adminUploadRoutes);
 app.use('/api/admin/comments', protect, adminOnly, adminCommentRoutes);
 app.use('/api/admin/blog-comments', protect, adminOnly, adminBlogCommentRoutes); // <-- REGISTER new admin route
 app.use('/api/admin/pages', protect, adminOnly, adminPageRoutes);
+app.use('/api/admin/redirects', protect, adminOnly, adminRedirectRoutes);
 app.use('/api/admin/link-checker', protect, adminOnly, adminLinkCheckerRoutes);
 app.use('/api/admin/popup-banners', protect, adminOnly, adminPopupBannerRoutes); // <-- REGISTER popup-banners admin API
 app.use('/api/admin/users', protect, adminOnly, adminUserRoutes); // <-- REGISTER users admin API

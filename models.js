@@ -252,4 +252,20 @@ const Setting = mongoose.models.Setting || mongoose.model('Setting', settingSche
 const Page = mongoose.models.Page || mongoose.model('Page', pageSchema);
 const PopupBanner = mongoose.models.PopupBanner || mongoose.model('PopupBanner', popupBannerSchema);
 
-module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment, Page, LinkCheckResult, PopupBanner };
+/**
+ * =============================================================================
+ *  LINK REDIRECT SCHEMA
+ *  Any address on the website -> any other address (a page on the site, or an outside link).
+ *  The website only looks here when a URL would otherwise be a 404, so a redirect can never
+ *  hide live content. `from` is stored normalised (see lib/linkRedirects.js): lowercase path,
+ *  no trailing slash, e.g. "/blog/old-post" or "/hi/blog/old-post".
+ * =============================================================================
+ */
+const linkRedirectSchema = new mongoose.Schema({
+    from: { type: String, required: true, unique: true, trim: true },
+    to: { type: String, required: true, trim: true },      // "/blog/new-post/" or "https://example.com/page"
+    status: { type: Number, enum: [301, 302], default: 301 },
+}, { timestamps: true });
+const LinkRedirect = mongoose.model('LinkRedirect', linkRedirectSchema);
+
+module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment, Page, LinkCheckResult, PopupBanner, LinkRedirect };

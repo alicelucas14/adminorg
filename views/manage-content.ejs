@@ -77,9 +77,10 @@
         <p class="mt-1 text-sm text-gray-800 font-medium" id="redirect-dialog-post"></p>
         <p class="text-xs text-gray-500 font-mono" id="redirect-dialog-url"></p>
 
-        <div class="mt-4 flex border-b border-gray-200" role="tablist">
+        <div class="mt-4 flex flex-wrap border-b border-gray-200" role="tablist">
             <button type="button" id="redirect-tab-in" role="tab" class="px-3 py-2 text-sm font-medium border-b-2 -mb-px">Send old URLs to this <%= noun %></button>
             <button type="button" id="redirect-tab-out" role="tab" class="px-3 py-2 text-sm font-medium border-b-2 -mb-px">Send this <%= noun %> to another</button>
+            <button type="button" id="redirect-tab-link" role="tab" class="px-3 py-2 text-sm font-medium border-b-2 -mb-px">Send this <%= noun %> to a link</button>
         </div>
 
         <!-- Tab 1: old URLs -> this item -->
@@ -110,11 +111,30 @@
             </p>
         </div>
 
+        <!-- Tab 3: this item -> any link (a page on the site, or another website) -->
+        <div id="redirect-panel-link" class="hidden">
+            <p class="mt-3 text-sm text-gray-500">
+                Anyone opening this <%= noun %>'s address, and any old address it had (English and Hindi), is sent to the link you enter.
+                It can be a page on this site (starting with /, for example <span class="font-mono">/blog/</span>) or another website
+                (<span class="font-mono">https://example.com/page</span>).
+            </p>
+            <input type="text" id="redirect-link-to" autocomplete="off" class="form-input mt-3 w-full border border-gray-300 rounded-md px-3 py-2" placeholder="/blog/   or   https://example.com/page">
+            <select id="redirect-link-status" class="form-select mt-3 w-full border border-gray-300 rounded-md px-3 py-2">
+                <option value="301">Permanent (301) - this <%= noun %> is gone for good</option>
+                <option value="302">Temporary (302) - this <%= noun %> may come back</option>
+            </select>
+            <p id="redirect-link-live-note" class="hidden mt-2 text-sm text-amber-700">
+                This <%= noun %> is published. It will be moved to Draft as well, otherwise its own address would keep showing it.
+            </p>
+            <p class="mt-2 text-xs text-gray-500">You can see and change every redirect on the Redirects page in the menu. Changes reach the website within about a minute.</p>
+        </div>
+
         <div id="redirect-dialog-result" class="mt-3 text-sm hidden"></div>
         <div class="mt-4 flex justify-end gap-2">
             <button type="button" id="redirect-dialog-cancel" class="btn btn-secondary border border-gray-300 px-4 py-2">Close</button>
             <button type="button" id="redirect-dialog-save" class="btn btn-primary px-4 py-2" disabled>Save redirects</button>
             <button type="button" id="redirect-out-go" class="btn btn-primary px-4 py-2 hidden" disabled>Redirect to selected</button>
+            <button type="button" id="redirect-link-go" class="btn btn-primary px-4 py-2 hidden">Redirect to this link</button>
         </div>
     </div>
 </div>
@@ -543,6 +563,9 @@
         const selectedNote = byId('redirect-target-selected');
         const liveNote = byId('redirect-out-live-note');
         const goBtn = byId('redirect-out-go');
+        const tabLink = byId('redirect-tab-link'), panelLink = byId('redirect-panel-link');
+        const linkInput = byId('redirect-link-to'), linkStatus = byId('redirect-link-status');
+        const linkLiveNote = byId('redirect-link-live-note'), linkGoBtn = byId('redirect-link-go');
         let postId = null, savedCount = 0;
         let targetId = null, targetLabel = '', searchSeq = 0, searchTimer, lastResults = new Map();
 
@@ -562,22 +585,26 @@
         const setDraftState = (isDraft) => {
             draftNote.classList.toggle('hidden', !isDraft);
             liveNote.classList.toggle('hidden', isDraft);
+            linkLiveNote.classList.toggle('hidden', isDraft);
         };
 
+        // tab: 'in' | 'out' | 'link'
         const setTab = (tab) => {
-            const out = tab === 'out';
-            panelIn.classList.toggle('hidden', out);
-            panelOut.classList.toggle('hidden', !out);
-            saveBtn.classList.toggle('hidden', out);
-            goBtn.classList.toggle('hidden', !out);
-            for (const [button, active] of [[tabIn, !out], [tabOut, out]]) {
+            panelIn.classList.toggle('hidden', tab !== 'in');
+            panelOut.classList.toggle('hidden', tab !== 'out');
+            panelLink.classList.toggle('hidden', tab !== 'link');
+            saveBtn.classList.toggle('hidden', tab !== 'in');
+            goBtn.classList.toggle('hidden', tab !== 'out');
+            linkGoBtn.classList.toggle('hidden', tab !== 'link');
+            for (const [button, name] of [[tabIn, 'in'], [tabOut, 'out'], [tabLink, 'link']]) {
+                const active = tab === name;
                 button.classList.toggle('border-indigo-600', active);
                 button.classList.toggle('text-indigo-700', active);
                 button.classList.toggle('border-transparent', !active);
                 button.classList.toggle('text-gray-500', !active);
             }
             result.className = 'hidden';
-            if (out) searchInput.focus(); else if (!input.disabled) input.focus();
+            if (tab === 'out') searchInput.focus(); else if (tab === 'link') linkInput.focus(); else if (!input.disabled) input.focus();
         };
 
         const resetTarget = () => {
@@ -622,6 +649,8 @@
             input.disabled = true;
             saveBtn.disabled = true;
             resetTarget();
+            linkInput.value = '';
+            linkStatus.value = '301';
             dialog.classList.remove('hidden');
             dialog.classList.add('flex');
             setTab(tab || (isDraft ? 'out' : 'in'));
@@ -724,6 +753,40 @@
             }
         };
 
+        // --- tab 3: this item -> any link
+        const redirectToLink = async () => {
+            const id = postId;
+            const to = linkInput.value.trim();
+            if (!id) return;
+            if (!to) { showToast('Enter the link to send visitors to.', 'error'); linkInput.focus(); return; }
+            const item = itemsById.get(id);
+            const live = item ? item.isPublished !== false : true;
+            const question = live
+                ? `Send this ${nounWord}'s URL to ${to} and move this ${nounWord} to Draft? It disappears from the website; nothing is deleted.`
+                : `Send this ${nounWord}'s URL to ${to}?`;
+            if (!confirm(question)) return;
+            linkGoBtn.disabled = true;
+            try {
+                const response = await fetch(`${apiEndpoint}/${id}/redirect-link`, {
+                    method: 'PUT',
+                    headers: authHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ to, status: Number(linkStatus.value), unpublish: live })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.message || 'Failed to redirect.');
+                if (postId !== id) { fetchContent(currentPage); return; }
+                showResult(data.skipped.length ? 'text-amber-700' : 'text-green-700', escapeHtml(data.message) + skippedHtml(data.skipped));
+                showToast(data.message, 'success');
+                setDraftState(true);
+                fetchContent(currentPage); // status changed on this row
+            } catch (error) {
+                showResult('text-red-600', escapeHtml(error.message));
+                showToast(`Error: ${error.message}`, 'error');
+            } finally {
+                linkGoBtn.disabled = false;
+            }
+        };
+
         tableBody.addEventListener('click', (e) => {
             const button = e.target.closest('.redirect-btn');
             if (button) openDialog(button.dataset.id, button.dataset.tab);
@@ -734,6 +797,9 @@
         });
         tabIn.addEventListener('click', () => setTab('in'));
         tabOut.addEventListener('click', () => setTab('out'));
+        tabLink.addEventListener('click', () => setTab('link'));
+        linkGoBtn.addEventListener('click', redirectToLink);
+        linkInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') redirectToLink(); });
         searchInput.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 250); });
         searchResults.addEventListener('click', (e) => {
             const button = e.target.closest('.redirect-target-item');
