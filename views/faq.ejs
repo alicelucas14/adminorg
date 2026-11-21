@@ -11,9 +11,10 @@
         Changes show on the website within about 30 seconds of saving.
     </p>
     <p class="text-gray-500 mt-1 text-sm">
-        Answers can use Markdown: <code class="bg-gray-200 px-1 rounded">**bold**</code>,
-        <code class="bg-gray-200 px-1 rounded">[link text](/promotions/)</code> for links, and lines starting with
-        <code class="bg-gray-200 px-1 rounded">- </code> for a list. A blank line starts a new paragraph.
+        <strong>To add a link:</strong> select the words in an answer, click the <i class="ri-link"></i> button above it
+        (or press Ctrl+K) and type where it should go: a page on this site such as <code class="bg-gray-200 px-1 rounded">/promotions/</code>,
+        or a full address such as <code class="bg-gray-200 px-1 rounded">https://example.com</code>.
+        Answers are Markdown, so a blank line starts a new paragraph.
     </p>
 </div>
 
@@ -140,6 +141,63 @@
 
     const inputClass = 'form-input !mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800';
 
+    // --- answer toolbar: bold / italic / link / list, working on the answer textarea's selection (Markdown) ---
+    // Replaces the text and tells the page it changed (so the state, "Unsaved changes" and auto-height all update).
+    const applyEdit = (ta, value, selStart, selEnd) => {
+        ta.value = value; ta.focus(); ta.setSelectionRange(selStart, selEnd);
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    const wrapSelection = (ta, mark, placeholder) => {
+        const s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.slice(s, e) || placeholder;
+        applyEdit(ta, ta.value.slice(0, s) + mark + sel + mark + ta.value.slice(e), s + mark.length, s + mark.length + sel.length);
+    };
+    // Only addresses the website will keep: a page on this site (/path or #section), http(s), or an email link.
+    const LINK_OK = /^(https?:\/\/\S+|mailto:\S+|\/(?!\/)\S*|#\S+)$/i;
+    const addLink = (ta) => {
+        const s = ta.selectionStart, e = ta.selectionEnd;
+        let text = ta.value.slice(s, e).trim();
+        const url = (prompt('Where should the link go?\n\nA page on this site, like /promotions/ , or a full address, like https://example.com', text ? 'https://' : '') || '').trim();
+        if (!url) return;
+        if (!LINK_OK.test(url)) { showNotice('error', 'That link is not allowed. Use a page on this site starting with / (like /promotions/), or an address starting with https://'); return; }
+        if (!text) { text = (prompt('Which words should the link be on?') || '').trim(); if (!text) return; }
+        const safeUrl = url.replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+        const md = `[${text.replace(/([\[\]])/g, '\\$1')}](${safeUrl})`;
+        // keep any spaces that were part of the selection outside the link
+        const lead = ta.value.slice(s, e).match(/^\s*/)[0], trail = ta.value.slice(s, e).match(/\s*$/)[0];
+        applyEdit(ta, ta.value.slice(0, s) + lead + md + trail + ta.value.slice(e), s + lead.length, s + lead.length + md.length);
+        hideNotice();
+    };
+    const toggleList = (ta) => {
+        const v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+        const from = v.lastIndexOf('\n', s - 1) + 1;
+        let to = v.indexOf('\n', e); if (to === -1) to = v.length;
+        const lines = v.slice(from, to).split('\n');
+        const all = lines.every((l) => l.startsWith('- '));
+        const out = lines.map((l) => (all ? l.slice(2) : (l.startsWith('- ') || !l.trim() ? l : `- ${l}`))).join('\n');
+        applyEdit(ta, v.slice(0, from) + out + v.slice(to), from, from + out.length);
+    };
+    const answerToolbar = (ta) => {
+        const tool = (icon, label, run) => el('button', {
+            type: 'button', title: label, 'aria-label': label,
+            class: 'px-2 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-100 text-base leading-none',
+            onmousedown: (ev) => ev.preventDefault(), // keep the text selection while clicking
+            onclick: () => run(ta),
+        }, el('i', { class: icon }));
+        ta.addEventListener('keydown', (ev) => {
+            if (!(ev.ctrlKey || ev.metaKey) || ev.altKey) return;
+            const key = ev.key.toLowerCase();
+            if (key === 'k') { ev.preventDefault(); addLink(ta); }
+            else if (key === 'b') { ev.preventDefault(); wrapSelection(ta, '**', 'bold text'); }
+            else if (key === 'i') { ev.preventDefault(); wrapSelection(ta, '*', 'italic text'); }
+        });
+        return el('div', { class: 'flex items-center gap-1 mb-1' },
+            tool('ri-bold', 'Bold (Ctrl+B)', (t) => wrapSelection(t, '**', 'bold text')),
+            tool('ri-italic', 'Italic (Ctrl+I)', (t) => wrapSelection(t, '*', 'italic text')),
+            tool('ri-link', 'Add a link to the selected words (Ctrl+K)', addLink),
+            tool('ri-list-unordered', 'Bullet list', toggleList),
+            el('span', { class: 'ml-2 text-xs text-gray-400', text: 'Select words, then click the link button' }));
+    };
+
     const renderItem = (section, item, ii) => {
         const other = lang === 'en' ? 'hi' : 'en';
         const status = el('div', { class: 'mt-2 text-xs font-medium' });
@@ -178,7 +236,7 @@
                         if (!confirm('Delete this question (English and Hindi)?')) return;
                         section.items.splice(ii, 1); touch(); render();
                     }, { danger: true }))),
-            reference, q, el('div', { class: 'mt-3' }, a), status);
+            reference, q, el('div', { class: 'mt-3' }, answerToolbar(a), a), status);
         refresh();
         return card;
     };
