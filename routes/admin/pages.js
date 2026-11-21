@@ -147,6 +147,11 @@ router.delete('/bulk-delete', async (req, res) => {
     }
 });
 
+// "about" is the address of the built-in About page (/about/, /hi/about/, edited under Admin > About page). A custom page
+// with that address would never be reached, so it cannot be created or renamed to it.
+const isBuiltInAbout = (slug) => String(slug || '').trim().toLowerCase().replace(/^\/+|\/+$/g, '') === 'about';
+const BUILT_IN_ABOUT_MSG = 'The address "about" is used by the built-in About page. Edit that one under "About page" in the menu, or choose another address.';
+
 /**
  * @route   POST /api/admin/pages
  * @desc    Create a new custom page
@@ -162,6 +167,7 @@ router.post('/', async (req, res) => {
     if (!slug || !title || !body) {
         return res.status(400).json({ message: 'Please provide slug, title, and body.' });
     }
+    if (isBuiltInAbout(slug)) return res.status(400).json({ message: BUILT_IN_ABOUT_MSG });
     const requiredFields = ['title', 'body'];
     for (const field of requiredFields) {
         if (typeof req.body[field] !== 'object' || !req.body[field].en || !req.body[field].hi) {
@@ -205,6 +211,11 @@ router.get('/:id', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
     try {
+        if (req.body && isBuiltInAbout(req.body.slug)) {
+            // a page that already had this address keeps working as before (it can still be edited); only a rename TO it is refused
+            const current = await Page.findById(req.params.id).select('slug').lean();
+            if (current && !isBuiltInAbout(current.slug)) return res.status(400).json({ message: BUILT_IN_ABOUT_MSG });
+        }
         const updatedPage = await Page.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
         if (!updatedPage) { return res.status(404).json({ message: 'Page not found' }); }
         res.json(updatedPage);

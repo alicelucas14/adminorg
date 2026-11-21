@@ -3,8 +3,10 @@
 
 const express = require('express');
 const router = express.Router();
-const { Promotion, Setting, Game, BlogPost, Review, Page, PopupBanner, LinkRedirect, Faq } = require('../models');
+const { Promotion, Setting, Game, BlogPost, Review, Page, PopupBanner, LinkRedirect, Faq, AboutPage, ContactMessage } = require('../models');
 const { faqForLang } = require('../lib/faq');
+const { aboutForLang, defaultAbout } = require('../lib/about');
+const { sanitizeContact, ContactValidationError, LIMITS: CONTACT_LIMITS } = require('../lib/contact');
 const { requireApiKey } = require('../middleware/apiKeyMiddleware');
 
 // Protect all routes in this file with the API Key middleware.
@@ -90,6 +92,62 @@ router.get('/faq', async (req, res) => {
         res.json({ sections: doc ? faqForLang(doc.sections, lang) : [] });
     } catch (error) {
         res.status(500).json({ message: 'Server error while fetching the FAQ.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/about?lang=en|hi
+ * @desc    The About page content for one language, every text already resolved (Hindi, else English):
+ *          { content: { hero, story|null, stats[], features|null, timeline|null, highlight|null, cta|null, seo } }.
+ *          Nothing saved in the admin yet = the starting content (isDefault: true), so the page is never empty.
+ * @access  Private (API Key)
+ */
+router.get('/about', async (req, res) => {
+    try {
+        const lang = req.query.lang === 'hi' ? 'hi' : 'en';
+        const doc = await AboutPage.findOne({ key: 'siteAbout' }).lean();
+        res.json({ content: aboutForLang(doc ? doc.content : defaultAbout().content, lang), isDefault: !doc });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while fetching the About page.' });
+    }
+});
+
+/**
+ * @route   POST /frontend-api/contact
+ * @body    { name, email, phone?, userId?, message, lang? }
+ * @desc    A message from the contact form on the About page (the website forwards it from its own server). Stored
+ *          for Admin > Messages. 400 { field, message } = something to fix; 429 = too many (the website shows "try later").
+ *          An identical message from the same address within a few minutes is accepted but not stored again.
+ * @access  Private (API Key)
+ */
+router.post('/contact', async (req, res) => {
+    try {
+        let data;
+        try {
+            data = sanitizeContact(req.body);
+        } catch (error) {
+            if (error instanceof ContactValidationError) return res.status(400).json({ field: error.field, message: error.message });
+            throw error;
+        }
+
+        const now = Date.now();
+        const hourAgo = new Date(now - 60 * 60 * 1000);
+        const recent = await ContactMessage.find({ email: data.email, createdAt: { $gte: new Date(now - CONTACT_LIMITS.dedupeMinutes * 60 * 1000) } }).select('message').lean();
+        if (recent.some((m) => m.message === data.message)) return res.json({ ok: true, duplicate: true });
+
+        const [sameEmail, everyone] = await Promise.all([
+            ContactMessage.countDocuments({ email: data.email, createdAt: { $gte: hourAgo } }),
+            ContactMessage.countDocuments({ createdAt: { $gte: hourAgo } }),
+        ]);
+        if (sameEmail >= CONTACT_LIMITS.perEmailPerHour || everyone >= CONTACT_LIMITS.perHour) {
+            return res.status(429).json({ message: 'Too many messages right now. Please try again later.' });
+        }
+
+        await ContactMessage.create(data);
+        res.status(201).json({ ok: true });
+    } catch (error) {
+        console.error('Error saving a contact message:', error);
+        res.status(500).json({ message: 'Server error while saving your message.' });
     }
 });
 

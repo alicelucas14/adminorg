@@ -1,0 +1,135 @@
+{
+  "content": {
+    "hero": {
+      "eyebrow": { "en": "About Us", "hi": "हमारे बारे में" },
+      "title": { "en": "About Starsuu7", "hi": "Starsuu7 के बारे में" },
+      "subtitle": {
+        "en": "Starsuu7, also known as UU7 or 777, is a mobile-first app for playing Teen Patti, Rummy and more, with easy sign-up, quick wallet actions and in-app support. The official website is uu7stars.com.",
+        "hi": "Starsuu7, जिसे UU7 या 777 भी कहा जाता है, तीन पत्ती, रम्मी और बहुत कुछ खेलने के लिए एक मोबाइल-फर्स्ट ऐप है, जिसमें आसान साइन-अप, तेज़ वॉलेट एक्शन और ऐप में सहायता मिलती है। आधिकारिक वेबसाइट uu7stars.com है।"
+      },
+      "primary": { "label": { "en": "Download the app", "hi": "ऐप डाउनलोड करें" }, "url": "/#download" },
+      "secondary": { "label": { "en": "Read the FAQ", "hi": "FAQ पढ़ें" }, "url": "/faq/" },
+      "image": {
+        "url": "/wordpress/STARSUU7-Game.webp",
+        "alt": { "en": "Starsuu7 app — Teen Patti & Rummy real cash games", "hi": "Starsuu7 ऐप — तीन पत्ती और रम्मी रियल कैश गेम्स" }
+      }
+    },
+    "story": {
+      "title": { "en": "Who we are", "hi": "हम कौन हैं" },
+      "body": {
+        "en": "Starsuu7 is a mobile-first app for playing Teen Patti, Rummy and more. Sign-up is easy, wallet actions are quick, and help is available inside the app.\n\n**Starsuu7 is for players aged 18 and over. Please play responsibly.**",
+        "hi": "Starsuu7 तीन पत्ती, रम्मी और बहुत कुछ खेलने के लिए एक मोबाइल-फर्स्ट ऐप है। साइन-अप आसान है, वॉलेट एक्शन तेज़ हैं और ऐप में सहायता उपलब्ध है।\n\n**Starsuu7 केवल 18 वर्ष या उससे अधिक आयु के खिलाड़ियों के लिए है। कृपया जिम्मेदारी से खेलें।**"
+      },
+      "quote": {
+        "en": "Teen Patti, Rummy and more, with easy sign-up, quick wallet actions and in-app support, all in one mobile-first app.",
+        "hi": "तीन पत्ती, रम्मी और बहुत कुछ, आसान साइन-अप, तेज़ वॉलेट एक्शन और ऐप में सहायता के साथ, सब कुछ एक मोबाइल-फर्स्ट ऐप में।"
+      },
+      "image": { "url": "", "alt": { "en": "", "hi": "" } }
+    },
+    "panels": {
+      "items": [
+        {
+          "icon": "🎯",
+          "title": { "en": "Our mission", "hi": "हमारा लक्ष्य" },
+          "text": {
+            "en": "Your entertainment is our priority. We want Starsuu7 to give you fair, secure and thrilling online gaming, with easy sign-up, quick wallet actions and help inside the app whenever you need it.",
+            "hi": "आपका मनोरंजन हमारी प्राथमिकता है। हम चाहते हैं कि Starsuu7 आपको निष्पक्ष, सुरक्षित और रोमांचक ऑनलाइन गेमिंग दे, आसान साइन-अप, तेज़ वॉलेट एक्शन और ज़रूरत पड़ने पर ऐप में सहायता के साथ।"
+          }
+        },
+        {
+          "icon": "💡",
+          "title": { "en": "Our values", "hi": "हमारे मूल्य" },
+          "text": {
+            "en": "We keep **security** and **support** at the centre of the app: account controls, KYC and wallet settings in one place, and help through Live Chat or Telegram. We ask every player to **play responsibly**.",
+            "hi": "हम **सुरक्षा** और **सहायता** को ऐप के केंद्र में रखते हैं: खाता नियंत्रण, केवाईसी और वॉलेट सेटिंग्स एक ही जगह, और लाइव चैट या Telegram से सहायता। हम हर खिलाड़ी से **जिम्मेदारी से खेलने** का आग्रह करते हैं।"
+          }
+        }
+      ]
+    },
+    "benefits": {
+      "title": { "en": "Starsuu7 in numbers", "hi": "आंकड़ों में Starsuu7" },
+      "items": [
+        { "icon": "🏆", "value": "150K+", "label": { "en": "Winners", "hi": "विजेता" } },
+        { "icon": "👥", "value": "75M+", "label": { "en": "Players", "hi": "खिलाड़ी" } },
+        { "icon": "💰", "value": "₹5 Cr+", "label": { "en": "Winnings", "hi": "जीत" } },
+        { "icon": "💬", "value": "24/7", "label": { "en": "Support", "hi": "सहायता" } }
+      ]
+    },
+    "features": {
+      "title": { "en": "What makes Starsuu7 safe?", "hi": "Starsuu7 को क्या सुरक्षित बनाता है?" },
+      "intro": { "en": "", "hi": "" },
+      "items": [
+        {
+          "icon": "🔒",
+          "title": { "en": "Standard security practices", "hi": "मानक सुरक्षा उपाय" },
+          "text": {
+            "en": "Starsuu7 uses encryption and protective controls to help keep account and transaction data secure. Use a strong password, lock your phone and never share your OTP.",
+            "hi": "Starsuu7 आपके खाते और लेनदेन के डेटा को सुरक्षित रखने में मदद के लिए एन्क्रिप्शन और सुरक्षा नियंत्रणों का उपयोग करता है। मज़बूत पासवर्ड रखें, अपना फ़ोन लॉक रखें और अपना OTP किसी से साझा न करें।"
+          }
+        },
+        {
+          "icon": "👤",
+          "title": { "en": "Account controls", "hi": "खाता नियंत्रण" },
+          "text": {
+            "en": "Manage login, KYC and wallet settings in the app. Keep your name and payout details the same as on your KYC documents to avoid withdrawal delays. More in [KYC, deposits and withdrawals](/faq/#payments).",
+            "hi": "ऐप में लॉगिन, केवाईसी और वॉलेट सेटिंग्स संभालें। निकासी में देरी से बचने के लिए अपना नाम और भुगतान विवरण अपने केवाईसी दस्तावेज़ों के अनुसार ही रखें। अधिक जानकारी: [केवाईसी, जमा और निकासी](/hi/faq/#payments)।"
+          }
+        },
+        {
+          "icon": "💬",
+          "title": { "en": "Responsive support", "hi": "त्वरित सहायता" },
+          "text": {
+            "en": "Questions about Teen Patti, Rummy, gameplay or payouts? Contact us through Help or Live Chat in the app, or on Telegram at t.me/OfficialStarsuu7game. Include your user ID and a short description.",
+            "hi": "तीन पत्ती, रम्मी, गेमप्ले या भुगतान के बारे में कोई सवाल है? ऐप में हेल्प या लाइव चैट से, या Telegram पर t.me/OfficialStarsuu7game पर हमसे संपर्क करें। अपनी यूजर आईडी और समस्या का संक्षिप्त विवरण ज़रूर बताएं।"
+          }
+        },
+        {
+          "icon": "⚡",
+          "title": { "en": "Faster wallet actions", "hi": "तेज वॉलेट एक्शन" },
+          "text": {
+            "en": "Deposits and withdrawals are quicker after KYC. Times can vary by payment method and routine checks. Track the status in Wallet → Transactions.",
+            "hi": "केवाईसी के बाद जमा और निकासी तेज़ होती है। भुगतान विधि और नियमित जांच के अनुसार समय अलग-अलग हो सकता है। स्थिति वॉलेट → लेनदेन में देखें।"
+          }
+        }
+      ]
+    },
+    "timeline": {
+      "title": { "en": "", "hi": "" },
+      "intro": { "en": "", "hi": "" },
+      "items": []
+    },
+    "highlight": {
+      "title": { "en": "Compliance and eligibility", "hi": "अनुपालन और पात्रता" },
+      "body": {
+        "en": "Starsuu7 is for players aged 18 and over. Services are not available in Assam, Arunachal Pradesh, Andhra Pradesh, Telangana, Odisha and Nagaland. Please play responsibly: see our [Responsible Gaming page](/responsible-gaming/).",
+        "hi": "Starsuu7 केवल 18 वर्ष या उससे अधिक आयु के खिलाड़ियों के लिए है। सेवाएं असम, अरुणाचल प्रदेश, आंध्र प्रदेश, तेलंगाना, ओडिशा और नागालैंड में उपलब्ध नहीं हैं। कृपया जिम्मेदारी से खेलें: हमारा [जिम्मेदार गेमिंग पेज](/hi/responsible-gaming/) देखें।"
+      }
+    },
+    "contact": {
+      "title": { "en": "Contact us", "hi": "हमसे संपर्क करें" },
+      "intro": {
+        "en": "Questions about Teen Patti, Rummy, gameplay or payouts? Send us a message. Please include your user ID and a short description.",
+        "hi": "तीन पत्ती, रम्मी, गेमप्ले या भुगतान के बारे में कोई सवाल है? हमें संदेश भेजें। कृपया अपनी यूजर आईडी और समस्या का संक्षिप्त विवरण ज़रूर बताएं।"
+      },
+      "button": { "en": "Send message", "hi": "संदेश भेजें" },
+      "success": { "en": "Thank you! Your message has been sent.", "hi": "धन्यवाद! आपका संदेश भेज दिया गया है।" },
+      "note": { "en": "Never include your password or OTP in a message.", "hi": "संदेश में अपना पासवर्ड या OTP कभी न लिखें।" },
+      "image": { "url": "", "alt": { "en": "", "hi": "" } }
+    },
+    "cta": {
+      "title": { "en": "New here?", "hi": "नए हैं?" },
+      "text": {
+        "en": "Go to the Download section to get the official APK and start in minutes. For eligibility and safety, see our [FAQ](/faq/#compliance).",
+        "hi": "आधिकारिक APK पाने और मिनटों में शुरू करने के लिए डाउनलोड सेक्शन पर जाएं। पात्रता और सुरक्षा के बारे में जानने के लिए हमारा [FAQ](/hi/faq/#compliance) देखें।"
+      },
+      "button": { "label": { "en": "Download the app", "hi": "ऐप डाउनलोड करें" }, "url": "/#download" }
+    },
+    "seo": {
+      "title": { "en": "About Starsuu7 | Safety, Support and Eligibility", "hi": "Starsuu7 के बारे में | सुरक्षा, सहायता और पात्रता" },
+      "description": {
+        "en": "Starsuu7, also known as UU7 or 777, is a mobile-first app for playing Teen Patti, Rummy and more, with easy sign-up, quick wallet actions and in-app support.",
+        "hi": "Starsuu7, जिसे UU7 या 777 भी कहा जाता है, तीन पत्ती, रम्मी और बहुत कुछ खेलने के लिए एक मोबाइल-फर्स्ट ऐप है, जिसमें आसान साइन-अप, तेज़ वॉलेट एक्शन और ऐप में सहायता मिलती है।"
+      }
+    }
+  }
+}

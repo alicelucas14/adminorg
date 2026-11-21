@@ -292,4 +292,40 @@ const faqSchema = new mongoose.Schema({
 }, { timestamps: true });
 const Faq = mongoose.models.Faq || mongoose.model('Faq', faqSchema);
 
-module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment, Page, LinkCheckResult, PopupBanner, LinkRedirect, Faq };
+/**
+ * =============================================================================
+ *  ABOUT PAGE SCHEMA
+ *  The website "About us" page (/about/, /hi/about/), edited under Admin > About page. One document
+ *  (key "siteAbout"); `content` has fixed optional sections (banner, story, numbers, cards, timeline, info box,
+ *  bottom banner, SEO) with every text in English + Hindi. It is always run through sanitizeAbout (lib/about.js)
+ *  before it is stored, which is why it can be a free-form object here.
+ *  No document = the public API serves the starting content from lib/aboutDefaults.json.
+ * =============================================================================
+ */
+const aboutSchema = new mongoose.Schema({
+    key: { type: String, required: true, unique: true, default: 'siteAbout' },
+    content: { type: mongoose.Schema.Types.Mixed, default: {} },
+}, { timestamps: true, minimize: false });
+const AboutPage = mongoose.models.AboutPage || mongoose.model('AboutPage', aboutSchema);
+
+/**
+ * =============================================================================
+ *  CONTACT MESSAGE SCHEMA
+ *  Messages sent through the contact form on the About page; read under Admin > Messages. Always run through
+ *  sanitizeContact (lib/contact.js) before they are stored. No IP address is kept.
+ * =============================================================================
+ */
+const contactMessageSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+    phone: { type: String, default: '' },
+    userId: { type: String, default: '' },
+    message: { type: String, required: true },
+    lang: { type: String, enum: ['en', 'hi'], default: 'en' },
+    status: { type: String, enum: ['new', 'read'], default: 'new' },
+}, { timestamps: true });
+contactMessageSchema.index({ createdAt: -1 });
+contactMessageSchema.index({ status: 1, createdAt: -1 });
+const ContactMessage = mongoose.models.ContactMessage || mongoose.model('ContactMessage', contactMessageSchema);
+
+module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment, Page, LinkCheckResult, PopupBanner, LinkRedirect, Faq, AboutPage, ContactMessage };

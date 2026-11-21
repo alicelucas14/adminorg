@@ -1,0 +1,155 @@
+<!-- backend/views/messages.ejs -->
+<!-- Admin > Messages: the inbox for the contact form on the website's About page. Data: lib/contact.js, API: routes/admin/contact-messages.js -->
+
+<%- include('partials/_header') %>
+<%- include('partials/_sidebar') %>
+
+<div class="mb-4">
+    <h2 class="text-3xl font-bold text-gray-800">Messages</h2>
+    <p class="text-gray-500 mt-1">
+        Messages people send through the contact form on the About page. New ones are marked with a dot and counted in the menu.
+        Nothing is sent to your email: this screen is the inbox, so check it regularly. Use <strong>Reply by email</strong> to answer.
+    </p>
+</div>
+
+<div class="card p-3 mb-4 flex flex-wrap items-center gap-3 border border-gray-200">
+    <div class="inline-flex rounded-md shadow-sm" role="group" aria-label="Show">
+        <button type="button" data-status="all" class="px-4 py-2 text-sm font-semibold border border-gray-300 rounded-l-md">All</button>
+        <button type="button" data-status="new" class="px-4 py-2 text-sm font-semibold border border-l-0 border-gray-300">New</button>
+        <button type="button" data-status="read" class="px-4 py-2 text-sm font-semibold border border-l-0 border-gray-300 rounded-r-md">Read</button>
+    </div>
+    <input id="search" type="search" maxlength="100" placeholder="Search name, email, user ID or text" aria-label="Search messages"
+           class="form-input border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 w-full sm:w-72">
+    <span id="summary" class="text-sm text-gray-600"></span>
+    <button type="button" id="mark-all" class="btn btn-secondary border border-gray-300 px-3 py-2 text-sm ml-auto">Mark all as read</button>
+</div>
+
+<div id="notice" class="hidden mb-4 text-sm rounded-lg p-3 border" role="status" aria-live="polite"></div>
+
+<div id="list" class="space-y-4">
+    <div class="card p-8 text-center text-gray-500">Loading...</div>
+</div>
+
+<div id="pager" class="mt-6 mb-10 flex items-center justify-center gap-3"></div>
+
+<script>
+    const apiEndpoint = '<%= apiEndpoint %>';
+    const getToken = () => document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] || null;
+    const api = async (path = '', options = {}) => {
+        const response = await fetch(`${apiEndpoint}${path}`, { ...options, headers: { 'Authorization': `Bearer ${getToken()}`, ...(options.body ? { 'Content-Type': 'application/json' } : {}) } });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) { window.location.href = '<%= adminBase %>'; throw new Error('Please sign in again.'); }
+        if (!response.ok) throw new Error(data.message || 'Something went wrong.');
+        return data;
+    };
+
+    // tiny DOM helper: never uses innerHTML, so nothing a visitor typed can run as markup in this screen
+    const el = (tag, props = {}, ...children) => {
+        const node = document.createElement(tag);
+        for (const [key, value] of Object.entries(props)) {
+            if (value === undefined || value === null || value === false) continue;
+            if (key === 'class') node.className = value;
+            else if (key === 'text') node.textContent = value;
+            else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+            else node.setAttribute(key, value === true ? '' : value);
+        }
+        for (const child of children.flat()) if (child) node.append(child);
+        return node;
+    };
+
+    const state = { status: 'all', q: '', page: 1 };
+    const list = document.getElementById('list');
+    const pager = document.getElementById('pager');
+    const summary = document.getElementById('summary');
+    const notice = document.getElementById('notice');
+    const showNotice = (kind, text) => {
+        const styles = { error: 'bg-red-50 border-red-200 text-red-800', ok: 'bg-green-50 border-green-200 text-green-800' };
+        notice.className = `mb-4 text-sm rounded-lg p-3 border ${styles[kind]}`; notice.textContent = text;
+    };
+    const hideNotice = () => { notice.className = 'hidden'; notice.textContent = ''; };
+
+    const when = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); };
+    const SAFE_EMAIL = /^[^\s@<>"'`]+@[^\s@<>"'`]+\.[^\s@<>"'`]{2,}$/;
+
+    const card = (m) => {
+        const isNew = m.status === 'new';
+        const meta = [
+            m.phone ? el('span', { text: `Phone: ${m.phone}` }) : null,
+            m.userId ? el('span', { text: `User ID: ${m.userId}` }) : null,
+            el('span', { class: 'px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold', text: m.lang === 'hi' ? 'Hindi page' : 'English page' }),
+        ].filter(Boolean);
+        const reply = SAFE_EMAIL.test(m.email)
+            ? el('a', { class: 'btn btn-primary px-3 py-1.5 text-sm inline-flex items-center gap-1', href: `mailto:${m.email}?subject=${encodeURIComponent('Your message to Starsuu7')}` }, el('i', { class: 'ri-reply-line' }), ' Reply by email')
+            : null;
+        return el('article', { class: `card p-5 border ${isNew ? 'border-blue-300 bg-blue-50/40' : 'border-gray-200'}`, 'data-id': m._id },
+            el('div', { class: 'flex flex-wrap items-start justify-between gap-2' },
+                el('div', {},
+                    el('div', { class: 'flex items-center gap-2' },
+                        isNew ? el('span', { class: 'inline-block w-2.5 h-2.5 rounded-full bg-blue-600', title: 'New', 'aria-label': 'New message' }) : null,
+                        el('span', { class: 'text-lg font-bold text-gray-800', text: m.name })),
+                    el('div', { class: 'text-sm text-gray-600', text: m.email })),
+                el('div', { class: 'text-sm text-gray-500', text: when(m.createdAt) })),
+            el('div', { class: 'mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600' }, meta),
+            el('p', { class: 'mt-3 text-gray-800 whitespace-pre-wrap break-words', text: m.message }),
+            el('div', { class: 'mt-4 flex flex-wrap items-center gap-2' },
+                reply,
+                el('button', { type: 'button', class: 'btn btn-secondary border border-gray-300 px-3 py-1.5 text-sm', onclick: () => setStatus(m._id, isNew ? 'read' : 'new') }, isNew ? 'Mark as read' : 'Mark as new'),
+                el('button', { type: 'button', class: 'px-3 py-1.5 text-sm rounded-md border border-red-200 text-red-600 hover:bg-red-50 ml-auto', onclick: () => remove(m) }, 'Delete')));
+    };
+
+    const paintTabs = (data) => {
+        for (const b of document.querySelectorAll('[data-status]')) {
+            const active = b.dataset.status === state.status;
+            const base = b.dataset.status === 'all' ? 'rounded-l-md' : (b.dataset.status === 'read' ? 'border-l-0 rounded-r-md' : 'border-l-0');
+            b.className = `px-4 py-2 text-sm font-semibold border border-gray-300 ${base} ${active ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 hover:bg-gray-50'}`;
+            b.setAttribute('aria-pressed', String(active));
+            if (b.dataset.status === 'new') b.textContent = data ? `New (${data.unread})` : 'New';
+        }
+    };
+
+    const load = async () => {
+        try {
+            const params = new URLSearchParams({ status: state.status, page: String(state.page) });
+            if (state.q) params.set('q', state.q);
+            const data = await api(`?${params}`);
+            paintTabs(data);
+            if (typeof window.setUnreadBadge === 'function') window.setUnreadBadge(data.unread);
+            summary.textContent = data.total === 1 ? '1 message' : `${data.total} messages`;
+            document.getElementById('mark-all').disabled = data.unread === 0;
+            document.getElementById('mark-all').classList.toggle('opacity-50', data.unread === 0);
+            list.replaceChildren(...(data.items.length
+                ? data.items.map(card)
+                : [el('div', { class: 'card p-8 text-center text-gray-500', text: state.q || state.status !== 'all' ? 'No messages match.' : 'No messages yet. They show up here when someone uses the contact form on the About page.' })]));
+            pager.replaceChildren(...(data.pages > 1 ? [
+                el('button', { type: 'button', class: 'btn btn-secondary border border-gray-300 px-3 py-1.5 text-sm', disabled: data.page <= 1, onclick: () => { state.page -= 1; load(); } }, 'Previous'),
+                el('span', { class: 'text-sm text-gray-600', text: `Page ${data.page} of ${data.pages}` }),
+                el('button', { type: 'button', class: 'btn btn-secondary border border-gray-300 px-3 py-1.5 text-sm', disabled: data.page >= data.pages, onclick: () => { state.page += 1; load(); } }, 'Next'),
+            ] : []));
+        } catch (error) {
+            list.replaceChildren(el('div', { class: 'card p-8 text-center text-red-600', text: `Could not load messages: ${error.message}` }));
+        }
+    };
+
+    const setStatus = async (id, status) => {
+        try { hideNotice(); await api(`/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }); await load(); }
+        catch (error) { showNotice('error', error.message); }
+    };
+    const remove = async (m) => {
+        if (!confirm(`Delete the message from ${m.name}? This cannot be undone.`)) return;
+        try { hideNotice(); await api(`/${m._id}`, { method: 'DELETE' }); await load(); }
+        catch (error) { showNotice('error', error.message); }
+    };
+
+    for (const b of document.querySelectorAll('[data-status]')) b.addEventListener('click', () => { state.status = b.dataset.status; state.page = 1; load(); });
+    let timer;
+    document.getElementById('search').addEventListener('input', (e) => { clearTimeout(timer); timer = setTimeout(() => { state.q = e.target.value.trim(); state.page = 1; load(); }, 300); });
+    document.getElementById('mark-all').addEventListener('click', async () => {
+        try { hideNotice(); const r = await api('/mark-all-read', { method: 'POST' }); showNotice('ok', `${r.updated} message(s) marked as read.`); await load(); }
+        catch (error) { showNotice('error', error.message); }
+    });
+
+    paintTabs(null);
+    load();
+</script>
+
+<%- include('partials/_footer') %>

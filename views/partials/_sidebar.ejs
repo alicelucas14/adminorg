@@ -59,6 +59,17 @@
                 </a>
             </li>
             <li>
+                <a href="<%= adminBase %>/about" class="flex items-center p-2 rounded-md transition-colors <%= page === 'about' ? 'bg-primary-600 text-white shadow-sm' : 'hover:bg-gray-800' %>">
+                    <i class="ri-information-line mr-3 w-5 text-center"></i> About page
+                </a>
+            </li>
+            <li>
+                <a href="<%= adminBase %>/messages" class="flex items-center p-2 rounded-md transition-colors <%= page === 'messages' ? 'bg-primary-600 text-white shadow-sm' : 'hover:bg-gray-800' %>">
+                    <i class="ri-mail-line mr-3 w-5 text-center"></i> Messages
+                    <span id="msg-badge" class="hidden ml-auto min-w-[1.4rem] text-center text-xs font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5" aria-label="Unread messages"></span>
+                </a>
+            </li>
+            <li>
                 <a href="<%= adminBase %>/redirects" class="flex items-center p-2 rounded-md transition-colors <%= page === 'redirects' ? 'bg-primary-600 text-white shadow-sm' : 'hover:bg-gray-800' %>">
                     <i class="ri-share-forward-line mr-3 w-5 text-center"></i> Redirects
                 </a>
@@ -126,5 +137,20 @@
         </div>
     </header>
     
+    <!-- Unread-messages counter next to "Messages" in the menu (admins only; fails quietly) -->
+    <script>
+        (function () {
+            var badge = document.getElementById('msg-badge');
+            if (!badge) return;
+            var token = (document.cookie.split('; ').find(function (r) { return r.indexOf('token=') === 0; }) || '').slice(6);
+            if (!token) return;
+            window.setUnreadBadge = function (n) { badge.textContent = n > 99 ? '99+' : String(n); badge.classList.toggle('hidden', !n); };
+            fetch('/api/admin/contact-messages/unread-count', { headers: { Authorization: 'Bearer ' + token } })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) { if (d && typeof d.unread === 'number') window.setUnreadBadge(d.unread); })
+                .catch(function () {});
+        })();
+    </script>
+
     <!-- Main Content Body -->
     <main class="flex-1 p-6">

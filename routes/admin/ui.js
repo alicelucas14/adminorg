@@ -92,6 +92,16 @@ router.get('/redirects', (req, res) => res.render('redirects', { user: req.user,
 router.get('/faq', (req, res) => res.render('faq', { user: req.user, page: 'faq', title: 'FAQ', apiEndpoint: '/api/admin/faq', frontendUrl }));
 
 //==============================================
+// ABOUT PAGE UI ROUTE (the website About us page, English + Hindi)
+//==============================================
+router.get('/about', (req, res) => res.render('about', { user: req.user, page: 'about', title: 'About page', apiEndpoint: '/api/admin/about', frontendUrl }));
+
+//==============================================
+// MESSAGES UI ROUTE (the inbox for the About page contact form)
+//==============================================
+router.get('/messages', (req, res) => res.render('messages', { user: req.user, page: 'messages', title: 'Messages', apiEndpoint: '/api/admin/contact-messages', frontendUrl }));
+
+//==============================================
 // LINK CHECKER UI ROUTE
 //==============================================
 router.get('/link-checker', async (req, res) => {

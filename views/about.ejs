@@ -1,0 +1,458 @@
+<!-- backend/views/about.ejs -->
+<!-- Admin > About page: edit the website About us page (English + Hindi). Data: lib/about.js, API: routes/admin/about.js -->
+
+<%- include('partials/_header') %>
+<%- include('partials/_sidebar') %>
+
+<div class="mb-4">
+    <h2 class="text-3xl font-bold text-gray-800">About page</h2>
+    <p class="text-gray-500 mt-1">
+        Edit the website's About us page, in English and in Hindi. The page is made of blocks, top to bottom.
+        <strong>A block you leave empty is not shown</strong>, so you decide exactly what appears.
+        Changes show on the website within about 30 seconds of saving.
+    </p>
+    <p class="text-gray-500 mt-1 text-sm">
+        <strong>Hindi:</strong> anything you leave empty in Hindi shows the English text on the Hindi page.
+        <strong>To add a link</strong> inside a text: select the words, click the <i class="ri-link"></i> button above the text (or press Ctrl+K)
+        and type where it should go, like <code class="bg-gray-200 px-1 rounded">/promotions/</code> or <code class="bg-gray-200 px-1 rounded">https://example.com</code>.
+        A blank line starts a new paragraph.
+    </p>
+</div>
+
+<!-- Toolbar: stays visible while scrolling -->
+<div class="card p-3 mb-4 sticky top-[73px] z-10 flex flex-wrap items-center gap-3 border border-gray-200">
+    <div class="inline-flex rounded-md shadow-sm" role="group" aria-label="Language being edited">
+        <button type="button" id="lang-en" class="px-4 py-2 text-sm font-semibold border border-gray-300 rounded-l-md">English</button>
+        <button type="button" id="lang-hi" class="px-4 py-2 text-sm font-semibold border border-l-0 border-gray-300 rounded-r-md">Hindi</button>
+    </div>
+    <span id="lang-summary" class="text-sm text-gray-600"></span>
+    <span id="dirty-note" class="hidden text-sm font-medium text-amber-700"><i class="ri-error-warning-line"></i> Unsaved changes</span>
+    <div class="ml-auto flex flex-wrap items-center gap-2">
+        <a id="view-site" href="#" target="_blank" rel="noopener" class="btn btn-secondary border border-gray-300 px-3 py-2 text-sm inline-flex items-center gap-1"><i class="ri-external-link-line"></i> View on website</a>
+        <button type="button" id="reset-btn" class="btn btn-secondary border border-gray-300 px-3 py-2 text-sm">Start over</button>
+        <button type="button" id="save-btn" class="btn btn-primary px-5 py-2 text-sm" disabled>Save changes</button>
+    </div>
+</div>
+
+<div id="notice" class="hidden mb-4 text-sm rounded-lg p-3 border" role="status" aria-live="polite"></div>
+
+<div id="editor" class="space-y-6 mb-10">
+    <div class="card p-8 text-center text-gray-500">Loading...</div>
+</div>
+
+<script>
+    const apiEndpoint = '<%= apiEndpoint %>';
+    const FRONTEND_BASE = <%- JSON.stringify((frontendUrl || '').replace(/\/+$/, '')).replace(/</g, '\\u003c') %>;
+    const getToken = () => document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] || null;
+    const authHeaders = (extra = {}) => ({ 'Authorization': `Bearer ${getToken()}`, ...extra });
+
+    const api = async (path, options = {}) => {
+        const response = await fetch(`${apiEndpoint}${path}`, { ...options, headers: authHeaders(options.body ? { 'Content-Type': 'application/json' } : {}) });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) { window.location.href = '<%= adminBase %>'; throw new Error('Please sign in again.'); }
+        if (!response.ok) { const err = new Error(data.message || 'Something went wrong.'); err.status = response.status; throw err; }
+        return data;
+    };
+
+    const LANG_NAME = { en: 'English', hi: 'Hindi' };
+    const state = { content: null, updatedAt: null, isDefault: false, limits: { eyebrow: 60, title: 160, subtitle: 600, intro: 600, buttonLabel: 40, url: 500, alt: 160, body: 6000, quote: 400, panels: 4, panelTitle: 80, panelText: 800, benefits: 6, benefitValue: 20, benefitLabel: 80, cardTitle: 120, cardText: 1000, stepLabel: 30, stepTitle: 120, stepText: 800, ctaTitle: 160, ctaText: 600, contactTitle: 160, contactIntro: 600, contactButton: 40, contactSuccess: 300, contactNote: 300, seoTitle: 70, seoDescription: 300, cards: 12, steps: 12 } };
+    let lang = 'en';
+    let dirty = false;
+
+    const editor = document.getElementById('editor');
+    const notice = document.getElementById('notice');
+    const saveBtn = document.getElementById('save-btn');
+    const dirtyNote = document.getElementById('dirty-note');
+    const langSummary = document.getElementById('lang-summary');
+
+    // --- tiny DOM helper: never uses innerHTML, so nothing typed here can break the page
+    const el = (tag, props = {}, ...children) => {
+        const node = document.createElement(tag);
+        for (const [key, value] of Object.entries(props)) {
+            if (value === undefined || value === null || value === false) continue;
+            if (key === 'class') node.className = value;
+            else if (key === 'text') node.textContent = value;
+            else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+            else node.setAttribute(key, value === true ? '' : value);
+        }
+        for (const child of children.flat()) if (child) node.append(child);
+        return node;
+    };
+
+    // --- the content, always in full shape (so the editor never meets a missing branch)
+    const str = (v) => (typeof v === 'string' ? v : '');
+    const P = (v) => ({ en: str(v && v.en), hi: str(v && v.hi) });
+    const btn = (v) => ({ label: P(v && v.label), url: str(v && v.url) });
+    const pic = (v) => ({ url: str(v && v.url), alt: P(v && v.alt) });
+    const normalise = (c) => {
+        c = c || {};
+        const h = c.hero || {}, s = c.story || {}, f = c.features || {}, t = c.timeline || {}, hl = c.highlight || {}, ct = c.cta || {}, se = c.seo || {}, b = c.benefits || {}, co = c.contact || {};
+        return {
+            hero: { eyebrow: P(h.eyebrow), title: P(h.title), subtitle: P(h.subtitle), primary: btn(h.primary), secondary: btn(h.secondary), image: pic(h.image) },
+            story: { title: P(s.title), body: P(s.body), quote: P(s.quote), image: pic(s.image) },
+            panels: { items: ((c.panels && c.panels.items) || []).map((it) => ({ icon: str(it.icon), title: P(it.title), text: P(it.text) })) },
+            benefits: { title: P(b.title), items: (b.items || []).map((it) => ({ icon: str(it.icon), value: str(it.value), label: P(it.label) })) },
+            contact: { title: P(co.title), intro: P(co.intro), button: P(co.button), success: P(co.success), note: P(co.note), image: pic(co.image) },
+            features: { title: P(f.title), intro: P(f.intro), items: (f.items || []).map((it) => ({ icon: str(it.icon), title: P(it.title), text: P(it.text) })) },
+            timeline: { title: P(t.title), intro: P(t.intro), items: (t.items || []).map((it) => ({ label: str(it.label), title: P(it.title), text: P(it.text) })) },
+            highlight: { title: P(hl.title), body: P(hl.body) },
+            cta: { title: P(ct.title), text: P(ct.text), button: btn(ct.button) },
+            seo: { title: P(se.title), description: P(se.description) },
+        };
+    };
+    const emptyPair = () => ({ en: '', hi: '' });
+
+    const showNotice = (kind, text) => {
+        const styles = { error: 'bg-red-50 border-red-200 text-red-800', info: 'bg-blue-50 border-blue-200 text-blue-800', ok: 'bg-green-50 border-green-200 text-green-800' };
+        notice.className = `mb-4 text-sm rounded-lg p-3 border ${styles[kind] || styles.info}`;
+        notice.textContent = text;
+    };
+    const hideNotice = () => { notice.className = 'hidden'; notice.textContent = ''; };
+
+    const setDirty = (value) => {
+        dirty = value;
+        dirtyNote.classList.toggle('hidden', !dirty);
+        saveBtn.disabled = !dirty;
+    };
+    const touch = () => { setDirty(true); updateSummary(); refreshBadges(); };
+    window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+    // --- how much is translated: every {en, hi} pair that has English but no Hindi falls back to English on the Hindi page
+    const walkPairs = (node, fn) => {
+        if (!node || typeof node !== 'object') return;
+        if (typeof node.en === 'string' && typeof node.hi === 'string') { fn(node); return; }
+        for (const v of Array.isArray(node) ? node : Object.values(node)) walkPairs(v, fn);
+    };
+    const updateSummary = () => {
+        let total = 0, missing = 0;
+        walkPairs(state.content, (p) => { if (p.en.trim()) { total++; if (!p.hi.trim()) missing++; } });
+        langSummary.textContent = lang === 'hi'
+            ? (missing ? `${missing} of ${total} texts have no Hindi yet (the Hindi page shows them in English)` : `All ${total} texts have Hindi`)
+            : `${total} texts filled in`;
+        document.getElementById('view-site').href = FRONTEND_BASE + (lang === 'hi' ? '/hi/about/' : '/about/');
+        for (const code of ['en', 'hi']) {
+            const active = code === lang;
+            document.getElementById(`lang-${code}`).className = `px-4 py-2 text-sm font-semibold border border-gray-300 ${code === 'en' ? 'rounded-l-md' : 'border-l-0 rounded-r-md'} ${active ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 hover:bg-gray-50'}`;
+            document.getElementById(`lang-${code}`).setAttribute('aria-pressed', String(active));
+        }
+    };
+
+    const move = (list, index, delta) => {
+        const target = index + delta;
+        if (target < 0 || target >= list.length) return;
+        [list[index], list[target]] = [list[target], list[index]];
+        touch(); render();
+    };
+    const grow = (ta) => { ta.style.height = 'auto'; ta.style.height = `${Math.min(ta.scrollHeight + 2, 480)}px`; };
+
+    const iconBtn = (icon, label, onclick, { disabled = false, danger = false } = {}) => el('button', {
+        type: 'button', title: label, 'aria-label': label, disabled,
+        class: `p-1.5 rounded-md border border-gray-200 text-lg leading-none ${disabled ? 'text-gray-300 cursor-not-allowed' : (danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-600 hover:bg-gray-100')}`,
+        onclick,
+    }, el('i', { class: icon }));
+
+    const inputClass = 'form-input !mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800';
+    const labelClass = 'block text-sm font-medium text-gray-700';
+    const miniBtn = 'btn btn-secondary border border-gray-300 px-3 py-1.5 text-sm inline-flex items-center gap-1';
+
+    // --- Markdown toolbar: bold / italic / link / list, working on a textarea's selection ---
+    const applyEdit = (ta, value, selStart, selEnd) => {
+        ta.value = value; ta.focus(); ta.setSelectionRange(selStart, selEnd);
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    const wrapSelection = (ta, mark, placeholder) => {
+        const s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.slice(s, e) || placeholder;
+        applyEdit(ta, ta.value.slice(0, s) + mark + sel + mark + ta.value.slice(e), s + mark.length, s + mark.length + sel.length);
+    };
+    // Only addresses the website will keep: a page on this site (/path or #section), http(s), or an email link.
+    const LINK_OK = /^(https?:\/\/\S+|mailto:\S+|\/(?!\/)\S*|#\S+)$/i;
+    const IMAGE_OK = /^(https?:\/\/\S+|\/(?!\/)\S+)$/i;
+    const addLink = (ta) => {
+        const s = ta.selectionStart, e = ta.selectionEnd;
+        let text = ta.value.slice(s, e).trim();
+        const url = (prompt('Where should the link go?\n\nA page on this site, like /promotions/ , or a full address, like https://example.com', text ? 'https://' : '') || '').trim();
+        if (!url) return;
+        if (!LINK_OK.test(url)) { showNotice('error', 'That link is not allowed. Use a page on this site starting with / (like /promotions/), or an address starting with https://'); return; }
+        if (!text) { text = (prompt('Which words should the link be on?') || '').trim(); if (!text) return; }
+        const safeUrl = url.replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+        const md = `[${text.replace(/([\[\]])/g, '\\$1')}](${safeUrl})`;
+        const lead = ta.value.slice(s, e).match(/^\s*/)[0], trail = ta.value.slice(s, e).match(/\s*$/)[0];
+        applyEdit(ta, ta.value.slice(0, s) + lead + md + trail + ta.value.slice(e), s + lead.length, s + lead.length + md.length);
+        hideNotice();
+    };
+    const toggleList = (ta) => {
+        const v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+        const from = v.lastIndexOf('\n', s - 1) + 1;
+        let to = v.indexOf('\n', e); if (to === -1) to = v.length;
+        const lines = v.slice(from, to).split('\n');
+        const all = lines.every((l) => l.startsWith('- '));
+        const out = lines.map((l) => (all ? l.slice(2) : (l.startsWith('- ') || !l.trim() ? l : `- ${l}`))).join('\n');
+        applyEdit(ta, v.slice(0, from) + out + v.slice(to), from, from + out.length);
+    };
+    const mdToolbar = (ta) => {
+        const tool = (icon, label, run) => el('button', {
+            type: 'button', title: label, 'aria-label': label,
+            class: 'px-2 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-100 text-base leading-none',
+            onmousedown: (ev) => ev.preventDefault(), // keep the text selection while clicking
+            onclick: () => run(ta),
+        }, el('i', { class: icon }));
+        ta.addEventListener('keydown', (ev) => {
+            if (!(ev.ctrlKey || ev.metaKey) || ev.altKey) return;
+            const key = ev.key.toLowerCase();
+            if (key === 'k') { ev.preventDefault(); addLink(ta); }
+            else if (key === 'b') { ev.preventDefault(); wrapSelection(ta, '**', 'bold text'); }
+            else if (key === 'i') { ev.preventDefault(); wrapSelection(ta, '*', 'italic text'); }
+        });
+        return el('div', { class: 'flex items-center gap-1 mt-1' },
+            tool('ri-bold', 'Bold (Ctrl+B)', (t) => wrapSelection(t, '**', 'bold text')),
+            tool('ri-italic', 'Italic (Ctrl+I)', (t) => wrapSelection(t, '*', 'italic text')),
+            tool('ri-link', 'Add a link to the selected words (Ctrl+K)', addLink),
+            tool('ri-list-unordered', 'Bullet list', toggleList),
+            el('span', { class: 'ml-2 text-xs text-gray-400', text: 'Select words, then click the link button' }));
+    };
+
+    // --- field builders ---------------------------------------------------------------------------------------
+    // A text that exists in English and Hindi, bound to pair[lang]. rows > 0 = a taller box; md = with the link toolbar.
+    const textField = (pair, label, { max, rows = 0, md = false, hint = '' } = {}) => {
+        const other = lang === 'en' ? 'hi' : 'en';
+        const placeholder = lang === 'hi' ? 'Hindi (empty = the English text is shown)' : '';
+        const input = rows
+            ? el('textarea', { rows: String(rows), maxlength: String(max), class: `${inputClass} leading-relaxed`, 'aria-label': `${label} (${LANG_NAME[lang]})`, placeholder,
+                oninput: (e) => { pair[lang] = e.target.value; grow(e.target); touch(); } })
+            : el('input', { type: 'text', maxlength: String(max), class: inputClass, 'aria-label': `${label} (${LANG_NAME[lang]})`, placeholder,
+                oninput: (e) => { pair[lang] = e.target.value; touch(); } });
+        input.value = pair[lang];
+        if (rows) queueMicrotask(() => grow(input));
+        const reference = lang === 'hi' && pair.en ? el('div', { class: 'mt-1 rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-600 whitespace-pre-wrap max-h-24 overflow-auto' },
+            el('span', { class: 'text-xs uppercase tracking-wide text-gray-400 mr-2', text: 'English' }), pair.en) : null;
+        return el('div', { class: 'mt-3' },
+            el('label', { class: labelClass, text: label }),
+            hint ? el('div', { class: 'text-xs text-gray-400', text: hint }) : null,
+            reference,
+            md ? mdToolbar(input) : null,
+            input);
+    };
+    // A value shared by both languages (an address, a number, an icon).
+    const plainField = (obj, key, label, { max, placeholder = '', hint = '', width = '' } = {}) => {
+        const input = el('input', { type: 'text', maxlength: String(max), class: `${inputClass} ${width}`, 'aria-label': label, placeholder,
+            oninput: (e) => { obj[key] = e.target.value.trim(); touch(); } });
+        input.value = obj[key];
+        return el('div', { class: 'mt-3' },
+            el('label', { class: labelClass, text: label }),
+            hint ? el('div', { class: 'text-xs text-gray-400', text: hint }) : null,
+            input);
+    };
+    const buttonFields = (b, name) => el('div', { class: 'grid gap-x-4 sm:grid-cols-2' },
+        textField(b.label, `${name}: text`, { max: state.limits.buttonLabel }),
+        plainField(b, 'url', `${name}: where it goes`, { max: state.limits.url, placeholder: '/faq/   or   https://example.com', hint: 'Same for English and Hindi. A page on this site is opened in the right language automatically.' }));
+
+    const uploadPicture = async (file, p, status) => {
+        const formData = new FormData();
+        formData.append('image', file);
+        status.textContent = 'Uploading...'; status.className = 'text-sm text-gray-600';
+        try {
+            const response = await fetch('/api/admin/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${getToken()}` }, body: formData });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.message || 'Upload failed');
+            p.url = result.filePath; touch(); render();
+        } catch (error) { status.textContent = `Error: ${error.message}`; status.className = 'text-sm text-red-600 font-medium'; }
+    };
+    const pictureField = (p, name) => {
+        const status = el('span', { class: 'text-sm text-gray-500' });
+        const file = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', class: 'hidden',
+            onchange: (e) => { const f = e.target.files[0]; if (f) uploadPicture(f, p, status); } });
+        const urlInput = el('input', { type: 'text', maxlength: String(state.limits.url), class: inputClass, 'aria-label': `${name} address`, placeholder: 'https://...  (or upload one)',
+            oninput: (e) => { p.url = e.target.value.trim(); touch(); preview(); } });
+        urlInput.value = p.url;
+        const thumb = el('img', { class: 'h-20 w-auto max-w-[160px] rounded border border-gray-200 object-cover bg-gray-50', alt: '' });
+        // a picture that lives on the website (starts with /) is previewed from the website, not from this admin address
+        const preview = () => { thumb.style.display = p.url && IMAGE_OK.test(p.url) ? '' : 'none'; if (p.url) thumb.src = p.url.startsWith('/') ? FRONTEND_BASE + p.url : p.url; };
+        preview();
+        return el('div', { class: 'mt-3' },
+            el('label', { class: labelClass, text: `${name} (optional)` }),
+            el('div', { class: 'flex items-start gap-3 flex-wrap' },
+                el('div', { class: 'flex-1 min-w-[240px]' }, urlInput,
+                    el('div', { class: 'mt-2 flex items-center gap-2 flex-wrap' },
+                        el('button', { type: 'button', class: miniBtn, onclick: () => file.click() }, el('i', { class: 'ri-upload-2-line' }), ' Upload a picture'),
+                        el('button', { type: 'button', class: miniBtn, onclick: () => { p.url = ''; touch(); render(); } }, el('i', { class: 'ri-close-line' }), ' Remove'),
+                        file, status)),
+                thumb),
+            textField(p.alt, `${name}: short description (for screen readers)`, { max: state.limits.alt }));
+    };
+
+    // --- a block of the page: card with a title, a help line, and a live "shown / hidden" badge --------------------
+    const badges = [];
+    const refreshBadges = () => badges.forEach((f) => f());
+    const block = (number, title, help, isShown, ...children) => {
+        const badge = el('span', { class: 'text-xs font-semibold px-2 py-0.5 rounded-full' });
+        const refresh = () => {
+            if (isShown === null) { badge.textContent = 'Always shown'; badge.className = 'text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600'; return; }
+            const on = isShown();
+            badge.textContent = on ? 'Shown on the page' : 'Hidden (empty)';
+            badge.className = `text-xs font-semibold px-2 py-0.5 rounded-full ${on ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`;
+        };
+        badges.push(refresh); refresh();
+        return el('section', { class: 'card p-5 border border-gray-200' },
+            el('div', { class: 'flex items-center justify-between gap-3 flex-wrap' },
+                el('div', {},
+                    el('div', { class: 'text-xs font-semibold uppercase tracking-wide text-gray-400', text: `Block ${number}` }),
+                    el('h3', { class: 'text-lg font-bold text-gray-800', text: title })),
+                badge),
+            el('p', { class: 'text-sm text-gray-500 mt-1', text: help }),
+            ...children);
+    };
+    const filled = (p) => !!(p.en && p.en.trim());
+
+    const addBtn = (label, onclick, disabled) => el('button', { type: 'button', disabled, class: `${miniBtn} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`, onclick }, el('i', { class: 'ri-add-line' }), ` ${label}`);
+    const rowControls = (list, i, what) => el('div', { class: 'flex items-center gap-1' },
+        iconBtn('ri-arrow-up-line', `Move ${what} up`, () => move(list, i, -1), { disabled: i === 0 }),
+        iconBtn('ri-arrow-down-line', `Move ${what} down`, () => move(list, i, 1), { disabled: i === list.length - 1 }),
+        iconBtn('ri-delete-bin-line', `Delete ${what}`, () => { if (!confirm(`Delete this ${what} (English and Hindi)?`)) return; list.splice(i, 1); touch(); render(); }, { danger: true }));
+    const entry = (label, list, i, what, ...children) => el('div', { class: 'rounded-lg border border-gray-200 p-4 bg-white' },
+        el('div', { class: 'flex items-center justify-between' },
+            el('span', { class: 'text-xs font-semibold uppercase tracking-wide text-gray-400', text: `${label} ${i + 1}` }),
+            rowControls(list, i, what)),
+        ...children);
+
+    const sections = () => {
+        const c = state.content, L = state.limits;
+        const out = [];
+
+        out.push(block(1, 'Banner', 'The big opening block at the top of the page: a large title and text on the left, a picture on the right. The title is required: it is the main heading. For the picture, a PNG or WebP with a transparent background (a cut-out, like the player on the home page) looks best. It is shown without a frame.', null,
+            textField(c.hero.eyebrow, 'Small label above the title', { max: L.eyebrow, hint: 'For example: About Us' }),
+            textField(c.hero.title, 'Title', { max: L.title }),
+            textField(c.hero.subtitle, 'Text under the title', { max: L.subtitle, rows: 3 }),
+            buttonFields(c.hero.primary, 'First button'),
+            buttonFields(c.hero.secondary, 'Second button'),
+            pictureField(c.hero.image, 'Picture next to the title')));
+
+        out.push(block(2, 'Who we are (our story)', 'A large heading and text on the left, and on the right an optional highlighted statement in big bold text with an orange bar beside it, and/or a picture. Good for who you are and what you stand for. Leave everything empty to hide the block. Tip: put a whole paragraph in **bold** (select it, press Ctrl+B) to make it stand out.',
+            () => filled(c.story.title) || filled(c.story.body) || filled(c.story.quote),
+            textField(c.story.title, 'Title', { max: L.title }),
+            textField(c.story.body, 'Text', { max: L.body, rows: 6, md: true }),
+            textField(c.story.quote, 'Highlighted statement', { max: L.quote, rows: 3, hint: 'Shown on the right in big bold text with an orange bar beside it. One or two sentences work best. Leave empty for none.' }),
+            pictureField(c.story.image, 'Picture beside the text')));
+
+        out.push(block(3, 'Mission & values', `Large side-by-side panels (up to ${L.panels}), each with an emoji, a heading and a text, in alternating blue and orange tints. Good for your mission and values. Put key phrases in **bold** (select, Ctrl+B). No panels = hidden.`,
+            () => c.panels.items.some((it) => filled(it.title)),
+            el('div', { class: 'mt-3 space-y-3' }, c.panels.items.map((it, i) => entry('Panel', c.panels.items, i, 'panel',
+                el('div', { class: 'grid gap-x-4 sm:grid-cols-[120px_1fr]' },
+                    plainField(it, 'icon', 'Emoji', { max: 8, placeholder: '🎯', hint: 'One emoji' }),
+                    textField(it.title, 'Title', { max: L.panelTitle })),
+                textField(it.text, 'Text', { max: L.panelText, rows: 4, md: true })))),
+            el('div', { class: 'mt-3' }, addBtn('Add a panel', () => { c.panels.items.push({ icon: '', title: emptyPair(), text: emptyPair() }); touch(); render(); }, c.panels.items.length >= L.panels))));
+
+        out.push(block(4, 'Cards', `A grid of cards, each with an emoji, a title and a short text (up to ${L.cards}). Good for what you offer or why people can trust you. No cards = the whole block is hidden.`,
+            () => c.features.items.some((it) => filled(it.title)),
+            textField(c.features.title, 'Block title', { max: L.title }),
+            textField(c.features.intro, 'Intro text (optional)', { max: L.intro, rows: 2 }),
+            el('div', { class: 'mt-4 space-y-3' }, c.features.items.map((it, i) => entry('Card', c.features.items, i, 'card',
+                el('div', { class: 'grid gap-x-4 sm:grid-cols-[120px_1fr]' },
+                    plainField(it, 'icon', 'Emoji', { max: 8, placeholder: '🔒', hint: 'One emoji' }),
+                    textField(it.title, 'Title', { max: L.cardTitle })),
+                textField(it.text, 'Text', { max: L.cardText, rows: 3, md: true })))),
+            el('div', { class: 'mt-3' }, addBtn('Add a card', () => { c.features.items.push({ icon: '', title: emptyPair(), text: emptyPair() }); touch(); render(); }, c.features.items.length >= L.cards))));
+
+        out.push(block(5, 'Our benefits (numbers)', `A band in your brand orange with big white numbers, each with a label and a small emoji (up to ${L.benefits}), for example 24/7 and Support. Only add numbers you can stand behind. No numbers = hidden.`,
+            () => c.benefits.items.some((it) => it.value.trim() && filled(it.label)),
+            textField(c.benefits.title, 'Block title', { max: L.title }),
+            el('div', { class: 'mt-4 space-y-3' }, c.benefits.items.map((it, i) => entry('Number', c.benefits.items, i, 'number',
+                el('div', { class: 'grid gap-x-4 sm:grid-cols-[110px_160px_1fr]' },
+                    plainField(it, 'icon', 'Emoji', { max: 8, placeholder: '🏆', hint: 'Optional' }),
+                    plainField(it, 'value', 'Number', { max: L.benefitValue, placeholder: '24/7' }),
+                    textField(it.label, 'Label', { max: L.benefitLabel }))))),
+            el('div', { class: 'mt-3' }, addBtn('Add a number', () => { c.benefits.items.push({ icon: '', value: '', label: emptyPair() }); touch(); render(); }, c.benefits.items.length >= L.benefits))));
+
+        out.push(block(6, 'Timeline', `A vertical list of steps or milestones (up to ${L.steps}): a label such as a year or "Step 1", a title and a text. Use it for your journey or for how things work. No steps = hidden.`,
+            () => c.timeline.items.some((it) => filled(it.title)),
+            textField(c.timeline.title, 'Block title', { max: L.title }),
+            textField(c.timeline.intro, 'Intro text (optional)', { max: L.intro, rows: 2 }),
+            el('div', { class: 'mt-4 space-y-3' }, c.timeline.items.map((it, i) => entry('Step', c.timeline.items, i, 'step',
+                el('div', { class: 'grid gap-x-4 sm:grid-cols-[160px_1fr]' },
+                    plainField(it, 'label', 'Label', { max: L.stepLabel, placeholder: '2024  or  Step 1', hint: 'Same in both languages' }),
+                    textField(it.title, 'Title', { max: L.stepTitle })),
+                textField(it.text, 'Text', { max: L.stepText, rows: 3, md: true })))),
+            el('div', { class: 'mt-3' }, addBtn('Add a step', () => { c.timeline.items.push({ label: '', title: emptyPair(), text: emptyPair() }); touch(); render(); }, c.timeline.items.length >= L.steps))));
+
+        out.push(block(7, 'Info box', 'A highlighted box for something important, like eligibility rules or a notice. Leave empty to hide it.',
+            () => filled(c.highlight.title) || filled(c.highlight.body),
+            textField(c.highlight.title, 'Title', { max: L.title }),
+            textField(c.highlight.body, 'Text', { max: L.body, rows: 4, md: true })));
+
+        out.push(block(8, 'Contact form', 'A large dark card with a form visitors can use to write to you (name, email, phone, user ID and a message). What they send arrives under "Messages" in the menu, not in your email. Here you change the heading, the text above the form, the button, the thank-you message, the small note under the button and the picture on the right (empty = a pair of dice in your brand colours; a PNG or WebP cut-out works best). Leave the title and text empty to hide the form.',
+            () => filled(c.contact.title) || filled(c.contact.intro),
+            textField(c.contact.title, 'Title', { max: L.contactTitle }),
+            textField(c.contact.intro, 'Text above the form', { max: L.contactIntro, rows: 3 }),
+            el('div', { class: 'grid gap-x-4 sm:grid-cols-2' },
+                textField(c.contact.button, 'Send button text', { max: L.contactButton, hint: 'Empty = "Send message"' }),
+                textField(c.contact.success, 'Thank-you message after sending', { max: L.contactSuccess, rows: 2, hint: 'Empty = a standard thank-you' })),
+            textField(c.contact.note, 'Small note under the button', { max: L.contactNote, rows: 2, hint: 'For example a safety reminder. Empty = no note.' }),
+            pictureField(c.contact.image, 'Picture on the right')));
+
+        out.push(block(9, 'Bottom banner', 'A closing call to action near the bottom of the page: a heading, a line of text and a button. Leave empty to hide it.',
+            () => filled(c.cta.title) || filled(c.cta.text) || (filled(c.cta.button.label) && !!c.cta.button.url),
+            textField(c.cta.title, 'Title', { max: L.ctaTitle }),
+            textField(c.cta.text, 'Text', { max: L.ctaText, rows: 2, md: true }),
+            buttonFields(c.cta.button, 'Button')));
+
+        out.push(block(10, 'Search engines (SEO)', 'What Google shows for this page. If you leave these empty, the banner title and text are used.', null,
+            textField(c.seo.title, 'Page title', { max: L.seoTitle, hint: 'About 50 to 60 characters works best' }),
+            textField(c.seo.description, 'Description', { max: L.seoDescription, rows: 2, hint: 'About 150 characters works best' })));
+        return out;
+    };
+
+    const render = () => {
+        badges.length = 0;
+        if (!state.content) return;
+        editor.replaceChildren(...sections());
+        updateSummary();
+    };
+
+    // --- actions
+    document.getElementById('lang-en').addEventListener('click', () => { lang = 'en'; render(); });
+    document.getElementById('lang-hi').addEventListener('click', () => { lang = 'hi'; render(); });
+
+    document.getElementById('reset-btn').addEventListener('click', async () => {
+        if (!confirm('Replace everything in the editor with the starting content?\n\nNothing is saved until you press "Save changes", and you can reload this page to go back to what is saved.')) return;
+        try {
+            const data = await api('/defaults');
+            state.content = normalise(data.content);
+            hideNotice(); setDirty(true); render();
+        } catch (error) { showNotice('error', error.message); }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+        hideNotice();
+        saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+        try {
+            const data = await api('', { method: 'PUT', body: JSON.stringify({ content: state.content, updatedAt: state.updatedAt }) });
+            state.content = normalise(data.content);
+            state.updatedAt = data.updatedAt; state.isDefault = false;
+            setDirty(false); render();
+            showNotice('ok', data.message);
+            if (typeof showToast === 'function') showToast('About page saved', 'success');
+        } catch (error) {
+            setDirty(true);
+            showNotice('error', error.message);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } finally {
+            saveBtn.textContent = 'Save changes';
+            saveBtn.disabled = !dirty;
+        }
+    });
+
+    (async () => {
+        try {
+            const data = await api('');
+            state.content = normalise(data.content);
+            state.updatedAt = data.updatedAt || null; state.isDefault = !!data.isDefault;
+            if (data.limits) state.limits = { ...state.limits, ...data.limits };
+            render();
+            if (state.isDefault) showNotice('info', 'The About page has not been edited here yet, so the website shows this starting content (taken from the About text already on the home page). Change what you like and press "Save changes" to take over.');
+        } catch (error) {
+            editor.replaceChildren(el('div', { class: 'card p-8 text-center text-red-600', text: `Could not load the About page: ${error.message}` }));
+        }
+    })();
+</script>
+
+<%- include('partials/_footer') %>
