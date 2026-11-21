@@ -1,0 +1,296 @@
+<!-- backend/views/faq.ejs -->
+<!-- Admin > FAQ: edit the website FAQ page (English + Hindi). Data: lib/faq.js, API: routes/admin/faq.js -->
+
+<%- include('partials/_header') %>
+<%- include('partials/_sidebar') %>
+
+<div class="mb-4">
+    <h2 class="text-3xl font-bold text-gray-800">FAQ</h2>
+    <p class="text-gray-500 mt-1">
+        Edit the questions on the website's FAQ page. Add, reorder or remove sections and questions, in English and in Hindi.
+        Changes show on the website within about 30 seconds of saving.
+    </p>
+    <p class="text-gray-500 mt-1 text-sm">
+        Answers can use Markdown: <code class="bg-gray-200 px-1 rounded">**bold**</code>,
+        <code class="bg-gray-200 px-1 rounded">[link text](/promotions/)</code> for links, and lines starting with
+        <code class="bg-gray-200 px-1 rounded">- </code> for a list. A blank line starts a new paragraph.
+    </p>
+</div>
+
+<!-- Toolbar: stays visible while scrolling -->
+<div class="card p-3 mb-4 sticky top-[73px] z-10 flex flex-wrap items-center gap-3 border border-gray-200">
+    <div class="inline-flex rounded-md shadow-sm" role="group" aria-label="Language being edited">
+        <button type="button" id="lang-en" class="px-4 py-2 text-sm font-semibold border border-gray-300 rounded-l-md">English</button>
+        <button type="button" id="lang-hi" class="px-4 py-2 text-sm font-semibold border border-l-0 border-gray-300 rounded-r-md">Hindi</button>
+    </div>
+    <span id="lang-summary" class="text-sm text-gray-600"></span>
+    <span id="dirty-note" class="hidden text-sm font-medium text-amber-700"><i class="ri-error-warning-line"></i> Unsaved changes</span>
+    <div class="ml-auto flex flex-wrap items-center gap-2">
+        <a id="view-site" href="#" target="_blank" rel="noopener" class="btn btn-secondary border border-gray-300 px-3 py-2 text-sm inline-flex items-center gap-1"><i class="ri-external-link-line"></i> View on website</a>
+        <button type="button" id="reset-btn" class="btn btn-secondary border border-gray-300 px-3 py-2 text-sm">Start over</button>
+        <button type="button" id="save-btn" class="btn btn-primary px-5 py-2 text-sm" disabled>Save changes</button>
+    </div>
+</div>
+
+<div id="notice" class="hidden mb-4 text-sm rounded-lg p-3 border" role="status" aria-live="polite"></div>
+
+<div id="editor" class="space-y-6">
+    <div class="card p-8 text-center text-gray-500">Loading...</div>
+</div>
+
+<div class="mt-6 mb-10">
+    <button type="button" id="add-section-btn" class="btn btn-secondary border border-gray-300 px-4 py-2 inline-flex items-center gap-1"><i class="ri-add-line"></i> Add section</button>
+</div>
+
+<script>
+    const apiEndpoint = '<%= apiEndpoint %>';
+    const FRONTEND_BASE = <%- JSON.stringify((frontendUrl || '').replace(/\/+$/, '')).replace(/</g, '\\u003c') %>;
+    const getToken = () => document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1] || null;
+    const authHeaders = (extra = {}) => ({ 'Authorization': `Bearer ${getToken()}`, ...extra });
+
+    const api = async (path, options = {}) => {
+        const response = await fetch(`${apiEndpoint}${path}`, { ...options, headers: authHeaders(options.body ? { 'Content-Type': 'application/json' } : {}) });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) { window.location.href = '<%= adminBase %>'; throw new Error('Please sign in again.'); }
+        if (!response.ok) { const err = new Error(data.message || 'Something went wrong.'); err.status = response.status; throw err; }
+        return data;
+    };
+
+    const LANG_NAME = { en: 'English', hi: 'Hindi' };
+    const state = { sections: [], updatedAt: null, isDefault: false, limits: { question: 300, answer: 6000, title: 120, anchor: 40 } };
+    let lang = 'en';
+    let dirty = false;
+
+    const editor = document.getElementById('editor');
+    const notice = document.getElementById('notice');
+    const saveBtn = document.getElementById('save-btn');
+    const dirtyNote = document.getElementById('dirty-note');
+    const langSummary = document.getElementById('lang-summary');
+
+    // --- tiny DOM helper: never uses innerHTML, so nothing typed into the FAQ can break the page
+    const el = (tag, props = {}, ...children) => {
+        const node = document.createElement(tag);
+        for (const [key, value] of Object.entries(props)) {
+            if (value === undefined || value === null || value === false) continue;
+            if (key === 'class') node.className = value;
+            else if (key === 'text') node.textContent = value;
+            else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+            else node.setAttribute(key, value === true ? '' : value);
+        }
+        for (const child of children.flat()) if (child) node.append(child);
+        return node;
+    };
+
+    const pair = (v) => ({ en: (v && typeof v.en === 'string') ? v.en : '', hi: (v && typeof v.hi === 'string') ? v.hi : '' });
+    const normaliseSections = (sections) => (sections || []).map((s) => ({
+        anchor: typeof s.anchor === 'string' ? s.anchor : '',
+        title: pair(s.title),
+        items: (s.items || []).map((it) => ({ q: pair(it.q), a: pair(it.a) })),
+    }));
+
+    const showNotice = (kind, text) => {
+        const styles = { error: 'bg-red-50 border-red-200 text-red-800', info: 'bg-blue-50 border-blue-200 text-blue-800', ok: 'bg-green-50 border-green-200 text-green-800' };
+        notice.className = `mb-4 text-sm rounded-lg p-3 border ${styles[kind] || styles.info}`;
+        notice.textContent = text;
+    };
+    const hideNotice = () => { notice.className = 'hidden'; notice.textContent = ''; };
+
+    const setDirty = (value) => {
+        dirty = value;
+        dirtyNote.classList.toggle('hidden', !dirty);
+        saveBtn.disabled = !dirty;
+    };
+    const touch = () => { setDirty(true); updateSummary(); };
+    window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+    // --- what is translated: Hindi shows only questions that have Hindi text, in sections that have a Hindi title
+    const itemTranslated = (it) => !!(it.q.hi.trim() && it.a.hi.trim());
+    const updateSummary = () => {
+        const all = state.sections.flatMap((s) => s.items);
+        const total = all.length;
+        if (lang === 'hi') {
+            const done = all.filter(itemTranslated).length;
+            langSummary.textContent = `${done} of ${total} questions have a Hindi version`;
+        } else {
+            langSummary.textContent = `${state.sections.length} sections, ${total} questions`;
+        }
+        const base = FRONTEND_BASE + (lang === 'hi' ? '/hi/faq/' : '/faq/');
+        document.getElementById('view-site').href = base;
+        for (const code of ['en', 'hi']) {
+            const active = code === lang;
+            document.getElementById(`lang-${code}`).className = `px-4 py-2 text-sm font-semibold border border-gray-300 ${code === 'en' ? 'rounded-l-md' : 'border-l-0 rounded-r-md'} ${active ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 hover:bg-gray-50'}`;
+            document.getElementById(`lang-${code}`).setAttribute('aria-pressed', String(active));
+        }
+    };
+
+    // --- reorder / delete helpers (a full re-render keeps the code simple; typing never re-renders)
+    const move = (list, index, delta) => {
+        const target = index + delta;
+        if (target < 0 || target >= list.length) return;
+        [list[index], list[target]] = [list[target], list[index]];
+        touch(); render();
+    };
+    const grow = (ta) => { ta.style.height = 'auto'; ta.style.height = `${Math.min(ta.scrollHeight + 2, 480)}px`; };
+
+    const iconBtn = (icon, label, onclick, { disabled = false, danger = false } = {}) => el('button', {
+        type: 'button', title: label, 'aria-label': label, disabled,
+        class: `p-1.5 rounded-md border border-gray-200 text-lg leading-none ${disabled ? 'text-gray-300 cursor-not-allowed' : (danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-600 hover:bg-gray-100')}`,
+        onclick,
+    }, el('i', { class: icon }));
+
+    const inputClass = 'form-input !mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800';
+
+    const renderItem = (section, item, ii) => {
+        const other = lang === 'en' ? 'hi' : 'en';
+        const status = el('div', { class: 'mt-2 text-xs font-medium' });
+        const refresh = () => {
+            status.textContent = ''; status.className = 'mt-2 text-xs font-medium';
+            if (lang === 'en') {
+                if (!item.q.en.trim() || !item.a.en.trim()) { status.textContent = 'The English question and answer are both required.'; status.classList.add('text-red-600'); }
+            } else if (!item.q.hi.trim() && !item.a.hi.trim()) {
+                status.textContent = 'Not translated yet: this question is not shown on the Hindi page.'; status.classList.add('text-gray-500');
+            } else if (!itemTranslated(item)) {
+                status.textContent = 'Fill in both the Hindi question and the Hindi answer (or clear both).'; status.classList.add('text-red-600');
+            } else { status.textContent = 'Shown on the Hindi page.'; status.classList.add('text-green-700'); }
+        };
+
+        const q = el('input', { type: 'text', maxlength: String(state.limits.question), class: inputClass, 'aria-label': `${LANG_NAME[lang]} question`, placeholder: `${LANG_NAME[lang]} question`,
+            oninput: (e) => { item.q[lang] = e.target.value; touch(); refresh(); } });
+        q.value = item.q[lang];
+        const a = el('textarea', { rows: '3', maxlength: String(state.limits.answer), class: `${inputClass} leading-relaxed`, 'aria-label': `${LANG_NAME[lang]} answer`, placeholder: `${LANG_NAME[lang]} answer (Markdown)`,
+            oninput: (e) => { item.a[lang] = e.target.value; grow(e.target); touch(); refresh(); } });
+        a.value = item.a[lang];
+        queueMicrotask(() => grow(a));
+
+        // when editing Hindi, show the English text for reference
+        const reference = lang === 'hi' ? el('div', { class: 'mb-3 rounded-md bg-gray-50 border border-gray-200 p-3 text-sm' },
+            el('div', { class: 'text-xs uppercase tracking-wide text-gray-400 mb-1', text: 'English (for reference)' }),
+            el('div', { class: 'font-semibold text-gray-700', text: item.q[other] }),
+            el('div', { class: 'mt-1 text-gray-600 whitespace-pre-wrap max-h-28 overflow-auto', text: item.a[other] })) : null;
+
+        const card = el('div', { class: 'rounded-lg border border-gray-200 p-4 bg-white' },
+            el('div', { class: 'flex items-center justify-between mb-2' },
+                el('span', { class: 'text-xs font-semibold uppercase tracking-wide text-gray-400', text: `Question ${ii + 1}` }),
+                el('div', { class: 'flex items-center gap-1' },
+                    iconBtn('ri-arrow-up-line', 'Move question up', () => move(section.items, ii, -1), { disabled: ii === 0 }),
+                    iconBtn('ri-arrow-down-line', 'Move question down', () => move(section.items, ii, 1), { disabled: ii === section.items.length - 1 }),
+                    iconBtn('ri-delete-bin-line', 'Delete question', () => {
+                        if (!confirm('Delete this question (English and Hindi)?')) return;
+                        section.items.splice(ii, 1); touch(); render();
+                    }, { danger: true }))),
+            reference, q, el('div', { class: 'mt-3' }, a), status);
+        refresh();
+        return card;
+    };
+
+    const renderSection = (section, si) => {
+        const other = lang === 'en' ? 'hi' : 'en';
+        const titleNote = el('div', { class: 'mt-1 text-xs font-medium' });
+        const refreshTitle = () => {
+            titleNote.textContent = ''; titleNote.className = 'mt-1 text-xs font-medium';
+            if (lang === 'en' && !section.title.en.trim()) { titleNote.textContent = 'The English title is required.'; titleNote.classList.add('text-red-600'); }
+            if (lang === 'hi' && !section.title.hi.trim()) { titleNote.textContent = 'Without a Hindi title this section is not shown on the Hindi page.'; titleNote.classList.add('text-amber-700'); }
+        };
+        const title = el('input', { type: 'text', maxlength: String(state.limits.title), class: `${inputClass} text-lg font-semibold`, 'aria-label': `${LANG_NAME[lang]} section title`, placeholder: `${LANG_NAME[lang]} section title`,
+            oninput: (e) => { section.title[lang] = e.target.value; touch(); refreshTitle(); } });
+        title.value = section.title[lang];
+        const anchor = el('input', { type: 'text', maxlength: String(state.limits.anchor), class: 'form-input !mt-0 border border-gray-300 rounded-md px-2 py-1 text-sm font-mono text-gray-800 w-48', placeholder: 'e.g. payments', 'aria-label': 'Link ID',
+            oninput: (e) => { section.anchor = e.target.value.trim().toLowerCase(); touch(); } });
+        anchor.value = section.anchor;
+
+        const itemsBox = el('div', { class: 'mt-4 space-y-3' }, section.items.map((it, ii) => renderItem(section, it, ii)));
+        const card = el('section', { class: 'card p-5 border border-gray-200' },
+            el('div', { class: 'flex items-start justify-between gap-3' },
+                el('div', { class: 'flex-1' },
+                    el('div', { class: 'text-xs font-semibold uppercase tracking-wide text-gray-400', text: `Section ${si + 1}` }),
+                    lang === 'hi' ? el('div', { class: 'text-sm text-gray-500 mt-1', text: `English: ${section.title[other]}` }) : null,
+                    title, titleNote),
+                el('div', { class: 'flex items-center gap-1 pt-4' },
+                    iconBtn('ri-arrow-up-line', 'Move section up', () => move(state.sections, si, -1), { disabled: si === 0 }),
+                    iconBtn('ri-arrow-down-line', 'Move section down', () => move(state.sections, si, 1), { disabled: si === state.sections.length - 1 }),
+                    iconBtn('ri-delete-bin-line', 'Delete section', () => {
+                        if (!confirm(`Delete this whole section${section.items.length ? ` and its ${section.items.length} question(s)` : ''}?`)) return;
+                        state.sections.splice(si, 1); touch(); render();
+                    }, { danger: true }))),
+            el('div', { class: 'mt-2 flex items-center gap-2 text-xs text-gray-500' },
+                el('label', { text: 'Link ID:' }), anchor,
+                el('span', { text: 'lets other pages link straight to this section (/faq/#id)' })),
+            itemsBox,
+            el('div', { class: 'mt-4' },
+                el('button', { type: 'button', class: 'btn btn-secondary border border-gray-300 px-3 py-1.5 text-sm inline-flex items-center gap-1',
+                    onclick: () => { section.items.push({ q: { en: '', hi: '' }, a: { en: '', hi: '' } }); touch(); render(); focusLast(si); } },
+                    el('i', { class: 'ri-add-line' }), ' Add question')));
+        refreshTitle();
+        return card;
+    };
+
+    const focusLast = (si) => {
+        const cards = editor.querySelectorAll('section');
+        const inputs = cards[si] && cards[si].querySelectorAll('input[aria-label$="question"]');
+        const last = inputs && inputs[inputs.length - 1];
+        if (last) { last.focus(); last.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    };
+
+    const render = () => {
+        editor.replaceChildren(...(state.sections.length
+            ? state.sections.map(renderSection)
+            : [el('div', { class: 'card p-8 text-center text-gray-500', text: 'No sections yet. Add one below.' })]));
+        updateSummary();
+    };
+
+    // --- actions
+    document.getElementById('lang-en').addEventListener('click', () => { lang = 'en'; render(); });
+    document.getElementById('lang-hi').addEventListener('click', () => { lang = 'hi'; render(); });
+
+    document.getElementById('add-section-btn').addEventListener('click', () => {
+        state.sections.push({ anchor: '', title: { en: '', hi: '' }, items: [{ q: { en: '', hi: '' }, a: { en: '', hi: '' } }] });
+        touch(); render();
+        const cards = editor.querySelectorAll('section');
+        const last = cards[cards.length - 1];
+        if (last) { const input = last.querySelector('input'); if (input) { input.focus(); last.scrollIntoView({ block: 'center', behavior: 'smooth' }); } }
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', async () => {
+        if (!confirm('Replace everything in the editor with the starting FAQ?\n\nNothing is saved until you press "Save changes", and you can reload this page to go back to what is saved.')) return;
+        try {
+            const data = await api('/defaults');
+            state.sections = normaliseSections(data.sections);
+            hideNotice(); setDirty(true); render();
+        } catch (error) { showNotice('error', error.message); }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+        hideNotice();
+        saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+        try {
+            const data = await api('', { method: 'PUT', body: JSON.stringify({ sections: state.sections, updatedAt: state.updatedAt }) });
+            state.sections = normaliseSections(data.sections);
+            state.updatedAt = data.updatedAt; state.isDefault = false;
+            setDirty(false); render();
+            showNotice('ok', data.message);
+            if (typeof showToast === 'function') showToast('FAQ saved', 'success');
+        } catch (error) {
+            setDirty(true);
+            showNotice('error', error.message);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } finally {
+            saveBtn.textContent = 'Save changes';
+            saveBtn.disabled = !dirty;
+        }
+    });
+
+    (async () => {
+        try {
+            const data = await api('');
+            state.sections = normaliseSections(data.sections);
+            state.updatedAt = data.updatedAt || null; state.isDefault = !!data.isDefault;
+            if (data.limits) state.limits = data.limits;
+            render();
+            if (state.isDefault) showNotice('info', 'The FAQ has not been edited here yet, so the website shows its built-in FAQ. This is the same text. Change what you like and press "Save changes" to take over.');
+        } catch (error) {
+            editor.replaceChildren(el('div', { class: 'card p-8 text-center text-red-600', text: `Could not load the FAQ: ${error.message}` }));
+        }
+    })();
+</script>
+
+<%- include('partials/_footer') %>

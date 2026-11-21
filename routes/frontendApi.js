@@ -3,7 +3,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { Promotion, Setting, Game, BlogPost, Review, Page, PopupBanner, LinkRedirect } = require('../models');
+const { Promotion, Setting, Game, BlogPost, Review, Page, PopupBanner, LinkRedirect, Faq } = require('../models');
+const { faqForLang } = require('../lib/faq');
 const { requireApiKey } = require('../middleware/apiKeyMiddleware');
 
 // Protect all routes in this file with the API Key middleware.
@@ -72,6 +73,23 @@ router.get('/settings', async (request, response) => {
         response.json(settings);
     } catch (error) {
         response.status(500).json({ message: 'Server error while fetching settings.' });
+    }
+});
+
+/**
+ * @route   GET /frontend-api/faq?lang=en|hi
+ * @desc    The FAQ page content for one language: { sections: [{ id?, title, items: [{ q, a }] }] }.
+ *          `a` is Markdown. Empty `sections` (nothing saved yet, or no Hindi yet) tells the website to
+ *          use the FAQ text shipped in its own locale files.
+ * @access  Private (API Key)
+ */
+router.get('/faq', async (req, res) => {
+    try {
+        const lang = req.query.lang === 'hi' ? 'hi' : 'en';
+        const doc = await Faq.findOne({ key: 'siteFaq' }).lean();
+        res.json({ sections: doc ? faqForLang(doc.sections, lang) : [] });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error while fetching the FAQ.' });
     }
 });
 

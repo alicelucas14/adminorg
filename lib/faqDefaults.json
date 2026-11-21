@@ -1,0 +1,267 @@
+{
+  "sections": [
+    {
+      "anchor": "",
+      "title": {
+        "en": "General questions",
+        "hi": "सामान्य प्रश्न"
+      },
+      "items": [
+        {
+          "q": {
+            "en": "What is Starsuu7?",
+            "hi": ""
+          },
+          "a": {
+            "en": "Starsuu7, also known as UU7 or 777, is a mobile-first gaming app for Teen Patti, Rummy, casino games and more. The official website is uu7stars.com.",
+            "hi": ""
+          }
+        },
+        {
+          "q": {
+            "en": "How do I download the UU7 APK?",
+            "hi": ""
+          },
+          "a": {
+            "en": "Go to the Download section on uu7stars.com and tap \"Download APK\", then open the file and tap Install. If Android asks, allow your browser to install unknown apps. Only download the app from uu7stars.com. Step-by-step help: [UU7 APK download guide](/blog/uu7-game-apk-for-android-step-by-step-download-for-players/).",
+            "hi": ""
+          }
+        },
+        {
+          "q": {
+            "en": "How do I create an account?",
+            "hi": "मैं Starsuu7 पर खाता कैसे बनाऊं?"
+          },
+          "a": {
+            "en": "Download and install the app, open it, fill in the required details and follow the prompts to finish registration.",
+            "hi": "Starsuu7 वेबसाइट पर जाएं और गेम डाउनलोड करें। अपनी व्यक्तिगत जानकारी के साथ आवश्यक फ़ील्ड भरें और पंजीकरण पूरा करने के लिए संकेतों का पालन करें।"
+          }
+        },
+        {
+          "q": {
+            "en": "What games are available on Starsuu7?",
+            "hi": "Starsuu7 पर किस प्रकार के खेल उपलब्ध हैं?"
+          },
+          "a": {
+            "en": "Starsuu7 offers Rummy, Teen Patti, casino games, lotteries and more. New games are added regularly.",
+            "hi": "Starsuu7 रम्मी, तीन पत्ती, कैसीनो गेम्स, लॉटरी और बहुत कुछ प्रदान करता है। नियमित रूप से नए गेम जोड़े जाते हैं।"
+          }
+        },
+        {
+          "q": {
+            "en": "How do I play Teen Patti?",
+            "hi": "तीन पत्ती कैसे खेलें"
+          },
+          "a": {
+            "en": "Each player gets three cards face down, and the best three-card hand wins the pot, unless everyone else folds first. New to the game? Read our Teen Patti tips and tricks.",
+            "hi": "प्रत्येक खिलाड़ी को तीन कार्ड बांटे जाते हैं। लक्ष्य सबसे अच्छा हाथ रखना या पॉट जीतने के लिए विरोधियों को धोखा देना है।"
+          }
+        },
+        {
+          "q": {
+            "en": "How do I play Rummy?",
+            "hi": "रम्मी कैसे खेलें"
+          },
+          "a": {
+            "en": "Rummy is about forming valid sets and sequences. Players pick and discard cards to complete their hand. For strategies, see our card game tips on the blog.",
+            "hi": "कुशलता से कार्ड उठाकर और त्यागकर वैध सेट और अनुक्रम बनाएं।"
+          }
+        },
+        {
+          "q": {
+            "en": "Is Starsuu7 safe and secure?",
+            "hi": "क्या Starsuu7 सुरक्षित है?"
+          },
+          "a": {
+            "en": "Starsuu7 uses encryption and account security controls to protect your data and transactions. Download the app only from uu7stars.com, use a strong password and never share your OTP. Starsuu7 support will never ask for it.",
+            "hi": "हाँ। हम डेटा और लेनदेन की सुरक्षा के लिए उन्नत एन्क्रिप्शन और अन्य सुरक्षा उपायों का उपयोग करते हैं।"
+          }
+        }
+      ]
+    },
+    {
+      "anchor": "compliance",
+      "title": {
+        "en": "Who can play",
+        "hi": ""
+      },
+      "items": [
+        {
+          "q": {
+            "en": "Who can play on Starsuu7?",
+            "hi": ""
+          },
+          "a": {
+            "en": "Starsuu7 is for players aged 18 and over. Services are not available in Assam, Arunachal Pradesh, Andhra Pradesh, Telangana, Odisha and Nagaland.",
+            "hi": ""
+          }
+        },
+        {
+          "q": {
+            "en": "Where can I read about responsible gaming?",
+            "hi": ""
+          },
+          "a": {
+            "en": "See our [Responsible Gaming page](/responsible-gaming/) for limits, tips and where to get help.",
+            "hi": ""
+          }
+        }
+      ]
+    },
+    {
+      "anchor": "",
+      "title": {
+        "en": "Account management",
+        "hi": "खाता प्रबंधन"
+      },
+      "items": [
+        {
+          "q": {
+            "en": "I forgot my password. How can I reset it?",
+            "hi": "मैं अपना पासवर्ड भूल गया। मैं इसे कैसे रीसेट कर सकता हूं?"
+          },
+          "a": {
+            "en": "Click \"Forgot Password\" on the login page, enter your registered email address and follow the instructions sent to your email.",
+            "hi": "लॉगिन पेज पर 'पासवर्ड भूल गए' पर क्लिक करें, अपना पंजीकृत ईमेल दर्ज करें, फिर ईमेल किए गए निर्देशों का पालन करें।"
+          }
+        },
+        {
+          "q": {
+            "en": "How can I update my personal information?",
+            "hi": "मैं अपनी व्यक्तिगत जानकारी कैसे अपडेट कर सकता हूं?"
+          },
+          "a": {
+            "en": "Log in, go to the \"Profile\" section, edit your details and save.",
+            "hi": "लॉग इन करें, प्रोफाइल अनुभाग पर जाएं, अपने विवरण संपादित करें और सहेजें।"
+          }
+        }
+      ]
+    },
+    {
+      "anchor": "payments",
+      "title": {
+        "en": "KYC, deposits and withdrawals",
+        "hi": "जमा और निकासी"
+      },
+      "items": [
+        {
+          "q": {
+            "en": "Do I need to complete KYC?",
+            "hi": ""
+          },
+          "a": {
+            "en": "Yes. Deposits and withdrawals are fastest after KYC. Keep your name and payout details the same as on your KYC documents to avoid delays.",
+            "hi": ""
+          }
+        },
+        {
+          "q": {
+            "en": "How do I make a deposit?",
+            "hi": "मैं जमा कैसे करूं?"
+          },
+          "a": {
+            "en": "Log in, go to the Wallet section, select Deposit, choose your payment method, fill in the details and confirm.",
+            "hi": "लॉग इन करें, बैंकिंग/वॉलेट → जमा खोलें, भुगतान विधि चुनें, विवरण दर्ज करें और पुष्टि करें।"
+          }
+        },
+        {
+          "q": {
+            "en": "How do I withdraw money from Starsuu7?",
+            "hi": ""
+          },
+          "a": {
+            "en": "Complete KYC first. Then log in, go to Wallet, select Withdraw, enter the amount and your payout details, and confirm. Track the status in Wallet → Transactions.",
+            "hi": ""
+          }
+        },
+        {
+          "q": {
+            "en": "How long do withdrawals take on Starsuu7?",
+            "hi": "Starsuu7 पर निकासी में कितना समय लगता है?"
+          },
+          "a": {
+            "en": "Withdrawals are usually processed within 24 hours. Times can vary by payment method and routine checks.",
+            "hi": "आमतौर पर 24 घंटे के भीतर, भुगतान विधि के आधार पर।"
+          }
+        }
+      ]
+    },
+    {
+      "anchor": "",
+      "title": {
+        "en": "Gaming questions",
+        "hi": "गेमिंग प्रश्न"
+      },
+      "items": [
+        {
+          "q": {
+            "en": "Can I play on my phone?",
+            "hi": "क्या मैं अपने मोबाइल डिवाइस पर गेम खेल सकता हूं?"
+          },
+          "a": {
+            "en": "Yes. Starsuu7 is built for mobile. Play in your phone's browser or download the app.",
+            "hi": "हाँ। Starsuu7 ब्राउज़र या एंड्रॉइड ऐप के माध्यम से मोबाइल के लिए अनुकूलित है।"
+          }
+        },
+        {
+          "q": {
+            "en": "What should I do if a game freezes?",
+            "hi": "अगर कोई गेम फ्रीज हो जाए तो मुझे क्या करना चाहिए?"
+          },
+          "a": {
+            "en": "Refresh the page or restart the app. If it still freezes, contact support through the Help section.",
+            "hi": "पेज को रीफ्रेश करें या ऐप को पुनरारंभ करें। यदि यह बना रहता है, तो सहायता के माध्यम से समर्थन से संपर्क करें।"
+          }
+        }
+      ]
+    },
+    {
+      "anchor": "",
+      "title": {
+        "en": "Promotions and bonuses",
+        "hi": "प्रमोशन और बोनस"
+      },
+      "items": [
+        {
+          "q": {
+            "en": "How can I find current promotions?",
+            "hi": ""
+          },
+          "a": {
+            "en": "Visit the [Promotions page](/promotions/) on the website or in the app.",
+            "hi": ""
+          }
+        },
+        {
+          "q": {
+            "en": "How do I claim a bonus?",
+            "hi": "मैं बोनस का दावा कैसे कर सकता हूं?"
+          },
+          "a": {
+            "en": "Follow the instructions on the Promotions page or in the app notification. Most bonuses are applied automatically once you meet the conditions. Bonus terms apply.",
+            "hi": "प्रमोशन पेज या इन-ऐप नोटिस में दिए गए निर्देशों का पालन करें। अधिकांश बोनस मानदंड पूरा होने पर स्वचालित रूप से लागू होते हैं।"
+          }
+        }
+      ]
+    },
+    {
+      "anchor": "",
+      "title": {
+        "en": "Support",
+        "hi": ""
+      },
+      "items": [
+        {
+          "q": {
+            "en": "How do I contact Starsuu7 support?",
+            "hi": ""
+          },
+          "a": {
+            "en": "Use Help or Live Chat in the app, or message us on Telegram at [t.me/OfficialStarsuu7game](https://t.me/OfficialStarsuu7game). Include your user ID and a short description of the problem.",
+            "hi": ""
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -268,4 +268,28 @@ const linkRedirectSchema = new mongoose.Schema({
 }, { timestamps: true });
 const LinkRedirect = mongoose.model('LinkRedirect', linkRedirectSchema);
 
-module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment, Page, LinkCheckResult, PopupBanner, LinkRedirect };
+/**
+ * =============================================================================
+ *  FAQ SCHEMA
+ *  The website FAQ page, edited under Admin > FAQ. One document (key "siteFaq"): ordered sections, each with
+ *  ordered questions, every text in English + Hindi. Answers are Markdown. See lib/faq.js for the rules.
+ *  No document = the website uses the FAQ text shipped in its own locale files.
+ * =============================================================================
+ */
+const faqText = { en: { type: String, default: '' }, hi: { type: String, default: '' } };
+const faqSchema = new mongoose.Schema({
+    key: { type: String, required: true, unique: true, default: 'siteFaq' },
+    sections: [{
+        _id: false,
+        anchor: { type: String, default: '' },      // optional link ID, e.g. "payments" -> /faq/#payments
+        title: { _id: false, ...faqText },
+        items: [{
+            _id: false,
+            q: { _id: false, ...faqText },
+            a: { _id: false, ...faqText },
+        }],
+    }],
+}, { timestamps: true });
+const Faq = mongoose.models.Faq || mongoose.model('Faq', faqSchema);
+
+module.exports = { Game, BlogPost, Review, User, Promotion, Setting, Comment, BlogComment, Page, LinkCheckResult, PopupBanner, LinkRedirect, Faq };

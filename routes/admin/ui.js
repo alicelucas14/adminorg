@@ -87,6 +87,11 @@ router.get('/pages/edit/:id', async (req, res) => { try { const pageData = await
 router.get('/redirects', (req, res) => res.render('redirects', { user: req.user, page: 'redirects', title: 'Redirects', apiEndpoint: '/api/admin/redirects', frontendUrl }));
 
 //==============================================
+// FAQ UI ROUTE (the website FAQ page, English + Hindi)
+//==============================================
+router.get('/faq', (req, res) => res.render('faq', { user: req.user, page: 'faq', title: 'FAQ', apiEndpoint: '/api/admin/faq', frontendUrl }));
+
+//==============================================
 // LINK CHECKER UI ROUTE
 //==============================================
 router.get('/link-checker', async (req, res) => {
