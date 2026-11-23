@@ -159,7 +159,13 @@ const settingSchema = new mongoose.Schema({
     ahrefsVerification: { type: String, default: '9b4a068be0accae70bb69802a875d1f5d6f987bb64e6f428005d97af07a52f2c' },
     customHeaderScripts: { type: String, default: '' },
     customFooterScripts: { type: String, default: '' },
-    
+
+    // --- Organization info for Google (the JSON-LD "Organization" block the website prints on every page) ---
+    // Profile links ("sameAs") are not stored here: they come from the social links above.
+    schemaOrgName: { type: String, trim: true, default: '' },                 // blank = the Site name
+    schemaAlternateNames: { type: [String], default: () => ['UU7', 'Stars UU7', '777', 'Starsuu7 App'] },
+    schemaSupportUrl: { type: String, trim: true, default: '' },              // blank = the Telegram link
+
     // --- Homepage Popup Banner ---
     showPopupBanner: { type: Boolean, default: false },
     popupBannerImageUrl: { type: String, default: '' },

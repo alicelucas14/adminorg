@@ -169,6 +169,29 @@
                      </div>
                 </div>
 
+                <!-- Organization info for Google (structured data) -->
+                <div class="p-6 space-y-4" id="orgSchemaSection">
+                     <h3 class="text-lg font-semibold text-gray-800">Organization Info for Google</h3>
+                     <p class="text-sm text-gray-500 -mt-2">The website tells Google who you are in a hidden block on every page (structured data, "Organization"). Edit what it says here. Your profile links (Telegram, Facebook, X, Pinterest and the rest) are added to it automatically from <strong class="font-medium text-gray-700">Social &amp; Support Links</strong> above. Changes show on the website within a minute of saving.</p>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="schemaOrgName" class="block text-sm font-medium text-gray-700">Organization name</label>
+                            <input type="text" id="schemaOrgName" maxlength="100" value="<%= settings ? settings.schemaOrgName : '' %>" class="form-input" placeholder="<%= settings && settings.siteName ? settings.siteName : 'Starsuu7' %>">
+                            <p class="mt-1 text-xs text-gray-500">Leave empty to use the site name (<strong class="font-medium text-gray-700"><%= settings && settings.siteName ? settings.siteName : 'Starsuu7' %></strong>).</p>
+                        </div>
+                        <div>
+                            <label for="schemaSupportUrl" class="block text-sm font-medium text-gray-700">Customer support link</label>
+                            <input type="url" id="schemaSupportUrl" maxlength="500" value="<%= settings ? settings.schemaSupportUrl : '' %>" class="form-input" placeholder="https://t.me/yourchannel">
+                            <p class="mt-1 text-xs text-gray-500">Where people go for help. Leave empty to use your Telegram URL from above.</p>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="schemaAlternateNames" class="block text-sm font-medium text-gray-700">Other names people use for the brand</label>
+                            <textarea id="schemaAlternateNames" rows="5" class="form-input text-sm" placeholder="One name per line"><%= settings && Array.isArray(settings.schemaAlternateNames) ? settings.schemaAlternateNames.join('\n') : '' %></textarea>
+                            <p class="mt-1 text-xs text-gray-500">One name per line (for example UU7, Stars UU7, 777). Up to 20 names.</p>
+                        </div>
+                     </div>
+                </div>
+
             </div>
 
             <!-- Form Footer -->
@@ -573,6 +596,9 @@
             ahrefsVerification: document.getElementById('ahrefsVerification').value,
             customHeaderScripts: document.getElementById('customHeaderScripts').value,
             customFooterScripts: document.getElementById('customFooterScripts').value,
+            schemaOrgName: document.getElementById('schemaOrgName').value,
+            schemaSupportUrl: document.getElementById('schemaSupportUrl').value,
+            schemaAlternateNames: document.getElementById('schemaAlternateNames').value.split('\n'),
             showSplashVideo: document.getElementById('showSplashVideo').checked,
             splashVideoUrl: document.getElementById('splashVideoUrl').value.trim(),
             extraSocialLinks: getExtraSocialLinks(),

@@ -7,6 +7,7 @@ const router = express.Router();
 const { Setting } = require('../../models');
 const { protect } = require('../../middleware/authMiddleware');
 const { sanitizeExtraSocialLinks, sanitizeSocialLinkDisplay } = require('../../lib/socialPlatforms');
+const { sanitizeOrgSchemaFields } = require('../../lib/orgSchema');
 
 // Protect all routes in this file
 router.use(protect);
@@ -44,6 +45,10 @@ router.get('/', async (request, response) => {
 router.put('/', async (request, response) => {
     try {
         const update = { ...request.body };
+        const orgSchemaError = sanitizeOrgSchemaFields(update);
+        if (orgSchemaError) {
+            return response.status(400).json({ message: orgSchemaError });
+        }
         if ('extraSocialLinks' in update) {
             update.extraSocialLinks = sanitizeExtraSocialLinks(update.extraSocialLinks);
         }
