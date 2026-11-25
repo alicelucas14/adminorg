@@ -117,13 +117,30 @@
                 <div class="space-y-6 border-t border-gray-200 pt-6">
                     <h3 class="text-lg font-semibold text-gray-800">SEO Settings</h3>
 
-                    <!-- Focus Keyword -->
+                    <!-- Main keyword (stored as focusKeyword) -->
                     <div>
                         <label for="focusKeyword" class="block text-sm font-medium text-gray-700">
-                            Focus Keyword <span class="text-gray-500 text-xs ml-1">(primary topic)</span>
+                            Main keyword <span class="text-gray-500 text-xs ml-1">(the search phrase this post should rank for)</span>
                         </label>
                         <input type="text" id="focusKeyword" value="<%= post ? post.focusKeyword : '' %>"
                                class="form-input" placeholder="e.g., Teen Patti tips">
+                        <div id="kw-checks" class="mt-2 flex flex-wrap items-center gap-2 text-xs" aria-live="polite"></div>
+                    </div>
+
+                    <!-- Meta description (what Google shows under the title) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="meta_desc_en" class="block text-sm font-medium text-gray-700">Meta description (English)</label>
+                            <textarea id="meta_desc_en" rows="3" class="form-input" maxlength="300"
+                                      placeholder="The short text Google shows under the title. Leave empty to use the start of the article."><%= post ? (post.metaDescription?.en || '') : '' %></textarea>
+                            <p id="meta_desc_en_count" class="mt-1 text-xs text-gray-500"></p>
+                        </div>
+                        <div>
+                            <label for="meta_desc_hi" class="block text-sm font-medium text-gray-700">Meta description (Hindi)</label>
+                            <textarea id="meta_desc_hi" rows="3" class="form-input" maxlength="300"
+                                      placeholder="Leave empty to use the start of the Hindi article."><%= post ? (post.metaDescription?.hi || '') : '' %></textarea>
+                            <p id="meta_desc_hi_count" class="mt-1 text-xs text-gray-500"></p>
+                        </div>
                     </div>
 
                     <!-- Canonical URL -->
@@ -395,6 +412,91 @@
         }
     });
 
+    // --- Main keyword + meta description helpers ---
+    // Markdown -> plain text, the same way the website turns the article start into a description.
+    function mdToPlain(md) {
+        return String(md || '')
+            .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+            .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+            .replace(/^\s*(?:[-*+]|\d+\.)\s+/gm, '')
+            .replace(/\*\*|__|\*|`/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+    // What the website shows when the meta description is empty: the start of the article (its first 150 characters).
+    function fallbackDescription(lang) {
+        const editor = lang === 'hi' ? easyMDE_hi : easyMDE_en;
+        return editor ? mdToPlain(editor.value().substring(0, 150)) : '';
+    }
+    function updateMetaCounter(lang) {
+        const n = document.getElementById('meta_desc_' + lang).value.trim().length;
+        const out = document.getElementById('meta_desc_' + lang + '_count');
+        let msg = n + ' characters: good length.', cls = 'text-green-600';
+        if (n === 0) { msg = 'Empty: the website uses the start of the article instead.'; cls = 'text-gray-500'; }
+        else if (n < 120) { msg = n + ' characters: a bit short, aim for 120-160.'; cls = 'text-amber-600'; }
+        else if (n > 160) { msg = n + ' characters: Google usually cuts it off after about 160.'; cls = 'text-red-600'; }
+        out.textContent = msg;
+        out.className = 'mt-1 text-xs ' + cls;
+    }
+    // Lower case, punctuation and dashes turned into spaces (letters, Hindi vowel signs and digits kept).
+    function normText(s) {
+        return ' ' + String(s || '').toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ').trim() + ' ';
+    }
+    // The first block of text in the article that is not a heading or an image.
+    function firstParagraph(md) {
+        for (const block of String(md || '').split(/\n\s*\n/)) {
+            const t = block.trim();
+            if (!t || /^#{1,6}\s/.test(t) || /^!\[[^\]]*\]\([^)]*\)$/.test(t)) continue;
+            return mdToPlain(t);
+        }
+        return '';
+    }
+    function updateKeywordChecks() {
+        const out = document.getElementById('kw-checks');
+        const kw = normText(document.getElementById('focusKeyword').value);
+        out.replaceChildren();
+        if (!kw.trim()) {
+            out.textContent = 'Add the main keyword to see where it appears in the post.';
+            out.className = 'mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500';
+            return;
+        }
+        out.className = 'mt-2 flex flex-wrap items-center gap-2 text-xs';
+        const checks = [
+            ['Title', document.getElementById('title_en').value],
+            ['Meta description', document.getElementById('meta_desc_en').value.trim() || fallbackDescription('en')],
+            ['URL', document.getElementById('slug').value],
+            ['First paragraph', firstParagraph(easyMDE_en ? easyMDE_en.value() : '')],
+        ];
+        const lead = document.createElement('span');
+        lead.className = 'text-gray-600';
+        lead.textContent = 'Found in (English):';
+        out.appendChild(lead);
+        for (const [name, text] of checks) {
+            const found = normText(text).includes(kw);
+            const chip = document.createElement('span');
+            chip.className = 'px-2 py-0.5 rounded-full font-medium ' + (found ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800');
+            chip.textContent = (found ? '\u2713 ' : '\u2717 ') + name;
+            chip.title = found ? 'The main keyword appears here.' : 'The main keyword does not appear here.';
+            chip.dataset.check = name;
+            chip.dataset.found = found ? '1' : '0';
+            out.appendChild(chip);
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+        ['en', 'hi'].forEach((lang) => {
+            document.getElementById('meta_desc_' + lang).addEventListener('input', () => { updateMetaCounter(lang); updateKeywordChecks(); });
+            updateMetaCounter(lang);
+        });
+        ['focusKeyword', 'slug'].forEach((id) => document.getElementById(id).addEventListener('input', updateKeywordChecks));
+        // keyup too: the slug is filled in from the title on keyup
+        ['input', 'keyup'].forEach((ev) => document.getElementById('title_en').addEventListener(ev, updateKeywordChecks));
+        let kwTimer;
+        easyMDE_en.codemirror.on('change', () => { clearTimeout(kwTimer); kwTimer = setTimeout(updateKeywordChecks, 300); });
+        updateKeywordChecks();
+    });
+
     // --- NEW: AI Content Generation Logic ---
     const generateEnBtn = document.getElementById('generate-en-btn');
     const generateHiBtn = document.getElementById('generate-hi-btn');
@@ -478,11 +580,12 @@
         // Google Preview
         document.getElementById('preview-url').textContent = `https://uu7stars.com/blog/${slug}/`;
         document.getElementById('preview-title').textContent = titleEn;
-        document.getElementById('preview-description').textContent = document.getElementById('og_desc_en').value || easyMDE_en.value().substring(0, 160) || 'Your description...';
+        const metaDescEn = document.getElementById('meta_desc_en').value.trim() || fallbackDescription('en');
+        document.getElementById('preview-description').textContent = metaDescEn || 'Your description...';
 
         // OG Preview
         const ogTitle = document.getElementById('og_title_en').value || titleEn;
-        const ogDesc = document.getElementById('og_desc_en').value || document.getElementById('og_desc_en').placeholder;
+        const ogDesc = document.getElementById('og_desc_en').value || metaDescEn || 'OG description...';
         document.getElementById('preview-og-url').textContent = 'uu7stars.com';
         document.getElementById('preview-og-title').textContent = ogTitle;
         document.getElementById('preview-og-desc').textContent = ogDesc;
@@ -497,7 +600,7 @@
     }
 
     // Update preview when key inputs change
-    ['title_en', 'focusKeyword', 'og_title_en', 'og_desc_en', 'tw_title_en', 'image'].forEach(id => {
+    ['title_en', 'focusKeyword', 'meta_desc_en', 'og_title_en', 'og_desc_en', 'tw_title_en', 'image'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', updatePreview);
     });
 
@@ -526,6 +629,10 @@
             tags: document.getElementById('tags').value.split(',').map(tag => tag.trim()).filter(Boolean),
             // SEO Fields
             focusKeyword: document.getElementById('focusKeyword').value || '',
+            metaDescription: {
+                en: document.getElementById('meta_desc_en').value.trim(),
+                hi: document.getElementById('meta_desc_hi').value.trim(),
+            },
             canonicalUrl: document.getElementById('canonicalUrl').value || '',
             robotsIndex: document.getElementById('robotsIndex').checked,
             robotsFollow: document.getElementById('robotsFollow').checked,
