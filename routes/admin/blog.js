@@ -10,6 +10,7 @@ const { escapeRegex } = require('../../lib/escapeRegex');
 const { bulkPublishHandler, statusFilter } = require('../../lib/publishing');
 const { redirectHandlers, withRedirectCounts, redirectFilter } = require('../../lib/redirects');
 const { findKeywordUses } = require('../../lib/keywordUses');
+const { findSimilarTitles } = require('../../lib/similarTitles');
 const { protect } = require('../../middleware/authMiddleware');
 
 router.use(protect);
@@ -204,6 +205,33 @@ router.post('/', async (req, res) => {
         res.status(201).json(savedPost);
     } catch (error) {
         if (error.code === 11000) return res.status(400).json({ message: `A blog post with slug '${slug}' already exists.` });
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   GET /api/admin/blog/similar-titles?title=...&exclude=<id>
+ * @desc    Existing posts (published or draft) whose title covers the same topic, for the editor's
+ *          duplicate warning. Must stay above GET /:id.
+ * @access  Private (Admin)
+ */
+router.get('/similar-titles', async (req, res) => {
+    const title = String(req.query.title || '').slice(0, 300);
+    const exclude = String(req.query.exclude || '');
+    if (!title.trim()) return res.json({ matches: [] });
+    try {
+        const posts = await BlogPost.find({}, { 'title.en': 1, slug: 1, isPublished: 1, publishedAt: 1 }).lean();
+        const candidates = posts
+            .filter((p) => String(p._id) !== exclude && p.title?.en)
+            .map((p) => ({
+                id: String(p._id),
+                title: p.title.en,
+                slug: p.slug,
+                isPublished: p.isPublished !== false,
+                publishedAt: p.publishedAt,
+            }));
+        res.json({ matches: findSimilarTitles(title, candidates) });
+    } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 });

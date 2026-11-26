@@ -47,15 +47,19 @@
                 </div>
 
                 <!-- English & Hindi Titles -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     <div>
-                        <label for="title_en" class="block text-sm font-medium text-gray-700">Title (English)</label>
-                        <input type="text" id="title_en" value="<%= post ? post.title.en : '' %>" required class="form-input">
+                <div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div>
+                            <label for="title_en" class="block text-sm font-medium text-gray-700">Title (English)</label>
+                            <input type="text" id="title_en" value="<%= post ? post.title.en : '' %>" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="title_hi" class="block text-sm font-medium text-gray-700">Title (Hindi)</label>
+                            <input type="text" id="title_hi" value="<%= post ? post.title.hi : '' %>" required class="form-input">
+                        </div>
                     </div>
-                    <div>
-                        <label for="title_hi" class="block text-sm font-medium text-gray-700">Title (Hindi)</label>
-                        <input type="text" id="title_hi" value="<%= post ? post.title.hi : '' %>" required class="form-input">
-                    </div>
+                    <!-- Warning when another post already covers this topic (filled in by updateSimilarTitles) -->
+                    <div id="title-dupes" class="hidden mt-2 rounded-md border px-3 py-2 text-xs" aria-live="polite"></div>
                 </div>
 
                 <!-- Body Content (English) with Markdown Editor -->
@@ -525,12 +529,15 @@
         let usesTimer;
         document.getElementById('focusKeyword').addEventListener('input', () => { clearTimeout(usesTimer); usesTimer = setTimeout(updateKeywordUses, 500); });
         updateKeywordUses();
+        let similarTimer;
+        document.getElementById('title_en').addEventListener('input', () => { clearTimeout(similarTimer); similarTimer = setTimeout(updateSimilarTitles, 600); });
     });
 
     // --- Warning when another post already has the same main keyword ---
     const currentPostId = '<%= post ? post._id : "" %>';
     let keywordUsesSeq = 0;
-    function postLinks(list) {
+    // Links to other posts' editors (new tab). `tip` builds the hover text; the default is the keyword-box one.
+    function postLinks(list, tip) {
         const frag = document.createDocumentFragment();
         list.forEach((p, i) => {
             if (i) frag.append(', ');
@@ -540,7 +547,7 @@
             a.rel = 'noopener';
             a.className = 'underline font-medium';
             a.textContent = p.title;
-            a.title = 'Main keyword there: "' + p.focusKeyword + '" (opens that post in a new tab)';
+            a.title = tip ? tip(p) : 'Main keyword there: "' + p.focusKeyword + '" (opens that post in a new tab)';
             frag.append(a);
         });
         return frag;
@@ -585,6 +592,55 @@
             box.className = 'mt-2 rounded-md border px-3 py-2 text-xs border-gray-200 bg-gray-50 text-gray-600';
             const p1 = document.createElement('p');
             p1.append('No live post has this main keyword. ' + (drafts.length === 1 ? 'A draft' : drafts.length + ' drafts') + ' (not on the website) ' + (drafts.length === 1 ? 'has' : 'have') + ' it too: ', postLinks(drafts), '.');
+            box.append(p1);
+        }
+    }
+
+    // --- Warning when another post already covers the same topic (compares titles) ---
+    // Runs while the English title is typed, not when an existing post is opened: it is there to stop
+    // another rewrite of a topic that already has a post, and an old post's neighbours are not news.
+    let similarTitlesSeq = 0;
+    async function updateSimilarTitles() {
+        const box = document.getElementById('title-dupes');
+        const title = document.getElementById('title_en').value.trim();
+        const seq = ++similarTitlesSeq;
+        let matches = [];
+        if (title) {
+            try {
+                const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+                const response = await fetch('/api/admin/blog/similar-titles?' + new URLSearchParams({ title, exclude: currentPostId }), {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (response.ok) matches = (await response.json()).matches || [];
+            } catch (_) { /* no warning if the check fails; saving still works */ }
+        }
+        if (seq !== similarTitlesSeq) return; // the title changed while we were asking
+        const live = matches.filter((p) => p.isPublished);
+        const drafts = matches.filter((p) => !p.isPublished);
+        const tip = (p) => 'Opens that post in a new tab (' + (p.isPublished ? 'live' : 'draft') + ', /' + p.slug + '/)';
+        box.replaceChildren();
+        box.dataset.live = live.length;
+        box.dataset.drafts = drafts.length;
+        if (!matches.length) { box.classList.add('hidden'); return; }
+        box.classList.remove('hidden');
+        if (live.length) {
+            box.className = 'mt-2 rounded-md border px-3 py-2 text-xs border-amber-300 bg-amber-50 text-amber-900';
+            const p1 = document.createElement('p');
+            p1.append('⚠ ' + (live.length === 1 ? 'A live post already covers a similar topic: ' : live.length + ' live posts already cover a similar topic: '), postLinks(live, tip), '.');
+            const p2 = document.createElement('p');
+            p2.className = 'mt-1';
+            p2.textContent = 'A second post on the same topic usually competes with the first on Google. Improve the existing post instead, or give this one a clearly different angle.';
+            box.append(p1, p2);
+            if (drafts.length) {
+                const p3 = document.createElement('p');
+                p3.className = 'mt-1 text-amber-800';
+                p3.append('Also similar, ' + (drafts.length === 1 ? 'a draft' : drafts.length + ' drafts') + ' (not on the website): ', postLinks(drafts, tip), '.');
+                box.append(p3);
+            }
+        } else {
+            box.className = 'mt-2 rounded-md border px-3 py-2 text-xs border-gray-200 bg-gray-50 text-gray-600';
+            const p1 = document.createElement('p');
+            p1.append('No live post has a similar title. ' + (drafts.length === 1 ? 'A draft' : drafts.length + ' drafts') + ' (not on the website) ' + (drafts.length === 1 ? 'does' : 'do') + ': ', postLinks(drafts, tip), '.');
             box.append(p1);
         }
     }
