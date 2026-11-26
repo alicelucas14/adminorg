@@ -125,6 +125,7 @@
                         <input type="text" id="focusKeyword" value="<%= post ? post.focusKeyword : '' %>"
                                class="form-input" placeholder="e.g., Teen Patti tips">
                         <div id="kw-checks" class="mt-2 flex flex-wrap items-center gap-2 text-xs" aria-live="polite"></div>
+                        <div id="kw-dupes" class="hidden mt-2 rounded-md border px-3 py-2 text-xs" aria-live="polite"></div>
                     </div>
 
                     <!-- Meta description (what Google shows under the title) -->
@@ -495,7 +496,72 @@
         let kwTimer;
         easyMDE_en.codemirror.on('change', () => { clearTimeout(kwTimer); kwTimer = setTimeout(updateKeywordChecks, 300); });
         updateKeywordChecks();
+        let usesTimer;
+        document.getElementById('focusKeyword').addEventListener('input', () => { clearTimeout(usesTimer); usesTimer = setTimeout(updateKeywordUses, 500); });
+        updateKeywordUses();
     });
+
+    // --- Warning when another post already has the same main keyword ---
+    const currentPostId = '<%= post ? post._id : "" %>';
+    let keywordUsesSeq = 0;
+    function postLinks(list) {
+        const frag = document.createDocumentFragment();
+        list.forEach((p, i) => {
+            if (i) frag.append(', ');
+            const a = document.createElement('a');
+            a.href = '<%= adminBase %>/blog/edit/' + encodeURIComponent(p.id);
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.className = 'underline font-medium';
+            a.textContent = p.title;
+            a.title = 'Main keyword there: "' + p.focusKeyword + '" (opens that post in a new tab)';
+            frag.append(a);
+        });
+        return frag;
+    }
+    async function updateKeywordUses() {
+        const box = document.getElementById('kw-dupes');
+        const keyword = document.getElementById('focusKeyword').value.trim();
+        const seq = ++keywordUsesSeq;
+        let uses = [];
+        if (keyword) {
+            try {
+                const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+                const response = await fetch('/api/admin/blog/keyword-uses?' + new URLSearchParams({ keyword, exclude: currentPostId }), {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (response.ok) uses = (await response.json()).uses || [];
+            } catch (_) { /* no warning if the check fails; saving still works */ }
+        }
+        if (seq !== keywordUsesSeq) return; // the keyword changed while we were asking
+        const live = uses.filter((p) => p.isPublished);
+        const drafts = uses.filter((p) => !p.isPublished);
+        box.replaceChildren();
+        box.dataset.live = live.length;
+        box.dataset.drafts = drafts.length;
+        if (!uses.length) { box.classList.add('hidden'); return; }
+        box.classList.remove('hidden');
+        if (live.length) {
+            box.className = 'mt-2 rounded-md border px-3 py-2 text-xs border-amber-300 bg-amber-50 text-amber-900';
+            const p1 = document.createElement('p');
+            p1.append('⚠ ' + (live.length === 1 ? 'Another live post already has this main keyword: ' : live.length + ' live posts already have this main keyword: '), postLinks(live), '.');
+            const p2 = document.createElement('p');
+            p2.className = 'mt-1';
+            p2.textContent = 'Two posts aiming at the same search usually compete with each other on Google. Give this post a different keyword, or keep one post and redirect the other to it.';
+            box.append(p1, p2);
+            if (drafts.length) {
+                const p3 = document.createElement('p');
+                p3.className = 'mt-1 text-amber-800';
+                p3.append('Also on ' + (drafts.length === 1 ? 'a draft' : drafts.length + ' drafts') + ' (not on the website): ', postLinks(drafts), '.');
+                box.append(p3);
+            }
+        } else {
+            box.className = 'mt-2 rounded-md border px-3 py-2 text-xs border-gray-200 bg-gray-50 text-gray-600';
+            const p1 = document.createElement('p');
+            p1.append('No live post has this main keyword. ' + (drafts.length === 1 ? 'A draft' : drafts.length + ' drafts') + ' (not on the website) ' + (drafts.length === 1 ? 'has' : 'have') + ' it too: ', postLinks(drafts), '.');
+            box.append(p1);
+        }
+    }
 
     // --- NEW: AI Content Generation Logic ---
     const generateEnBtn = document.getElementById('generate-en-btn');

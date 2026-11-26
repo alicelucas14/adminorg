@@ -9,6 +9,7 @@ const { BlogPost } = require('../../models');
 const { escapeRegex } = require('../../lib/escapeRegex');
 const { bulkPublishHandler, statusFilter } = require('../../lib/publishing');
 const { redirectHandlers, withRedirectCounts, redirectFilter } = require('../../lib/redirects');
+const { findKeywordUses } = require('../../lib/keywordUses');
 const { protect } = require('../../middleware/authMiddleware');
 
 router.use(protect);
@@ -117,6 +118,27 @@ router.get('/', async (req, res) => {
             BlogPost.countDocuments(filter)
         ]);
         res.json({ data: await withRedirectCounts(BlogPost, posts), totalItems, currentPage: page, totalPages: Math.ceil(totalItems / limit) });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+});
+
+/**
+ * @route   GET /api/admin/blog/keyword-uses?keyword=...&exclude=<id>
+ * @desc    Other posts (live and drafts) whose main keyword is the same, for the editor's warning.
+ *          Must stay above GET /:id.
+ * @access  Private (Admin)
+ */
+router.get('/keyword-uses', async (req, res) => {
+    const keyword = String(req.query.keyword || '').slice(0, 200);
+    const exclude = String(req.query.exclude || '');
+    if (!keyword.trim()) return res.json({ uses: [] });
+    try {
+        const posts = await BlogPost.find(
+            { focusKeyword: { $nin: ['', null] } },
+            { focusKeyword: 1, 'title.en': 1, slug: 1, isPublished: 1 }
+        ).lean();
+        res.json({ uses: findKeywordUses(keyword, posts, exclude).slice(0, 10) });
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
