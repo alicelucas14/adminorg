@@ -62,22 +62,48 @@
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label for="body_en" class="block text-sm font-medium text-gray-700">Body Content (English)</label>
-                        <button type="button" id="generate-en-btn" class="btn btn-secondary py-1 px-2 text-xs flex items-center">
-                            <i class="ri-robot-2-line mr-1"></i> Generate with AI
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="body_en_toggle" class="btn btn-secondary py-1 px-2 text-xs flex items-center"
+                                    aria-expanded="true" aria-controls="body_en_wrap" title="Hide the article editor so the settings below are easier to reach">
+                                <i class="ri-arrow-up-s-line mr-1"></i> <span>Hide editor</span>
+                            </button>
+                            <button type="button" id="generate-en-btn" class="btn btn-secondary py-1 px-2 text-xs flex items-center">
+                                <i class="ri-robot-2-line mr-1"></i> Generate with AI
+                            </button>
+                        </div>
                     </div>
-                    <textarea id="body_en"><%= post ? post.body.en : '' %></textarea>
+                    <div id="body_en_wrap">
+                        <textarea id="body_en"><%= post ? post.body.en : '' %></textarea>
+                    </div>
+                    <button type="button" id="body_en_summary" aria-controls="body_en_wrap"
+                            class="hidden w-full text-left rounded-md border border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 px-4 py-3 text-sm text-gray-600">
+                        <span class="block truncate"><span data-words class="font-medium text-gray-700"></span> <span class="text-gray-400">&middot;</span> <span data-first class="italic"></span></span>
+                        <span class="block mt-1 text-xs font-medium text-primary-600"><i class="ri-arrow-down-s-line"></i> Click to show the editor</span>
+                    </button>
                 </div>
                 
                 <!-- Body Content (Hindi) with Markdown Editor -->
                 <div>
                      <div class="flex justify-between items-center mb-1">
                         <label for="body_hi" class="block text-sm font-medium text-gray-700">Body Content (Hindi)</label>
-                        <button type="button" id="generate-hi-btn" class="btn btn-secondary py-1 px-2 text-xs flex items-center">
-                           <i class="ri-robot-2-line mr-1"></i> Generate with AI
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="body_hi_toggle" class="btn btn-secondary py-1 px-2 text-xs flex items-center"
+                                    aria-expanded="true" aria-controls="body_hi_wrap" title="Hide the article editor so the settings below are easier to reach">
+                                <i class="ri-arrow-up-s-line mr-1"></i> <span>Hide editor</span>
+                            </button>
+                            <button type="button" id="generate-hi-btn" class="btn btn-secondary py-1 px-2 text-xs flex items-center">
+                               <i class="ri-robot-2-line mr-1"></i> Generate with AI
+                            </button>
+                        </div>
                     </div>
-                    <textarea id="body_hi"><%= post ? post.body.hi : '' %></textarea>
+                    <div id="body_hi_wrap">
+                        <textarea id="body_hi"><%= post ? post.body.hi : '' %></textarea>
+                    </div>
+                    <button type="button" id="body_hi_summary" aria-controls="body_hi_wrap"
+                            class="hidden w-full text-left rounded-md border border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 px-4 py-3 text-sm text-gray-600">
+                        <span class="block truncate"><span data-words class="font-medium text-gray-700"></span> <span class="text-gray-400">&middot;</span> <span data-first class="italic"></span></span>
+                        <span class="block mt-1 text-xs font-medium text-primary-600"><i class="ri-arrow-down-s-line"></i> Click to show the editor</span>
+                    </button>
                 </div>
                 
                 <!-- Metadata Section -->
@@ -563,6 +589,44 @@
         }
     }
 
+    // --- Hide / show the long article editors so the settings below are easy to reach ---
+    // The choice is remembered in this browser; an empty article always starts open.
+    const BODY_HIDDEN_KEY = 'blogEditor.bodyHidden.';
+    function bodyEditor(lang) { return lang === 'hi' ? easyMDE_hi : easyMDE_en; }
+    function updateBodySummary(lang) {
+        const text = bodyEditor(lang) ? bodyEditor(lang).value() : '';
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        const summary = document.getElementById('body_' + lang + '_summary');
+        summary.querySelector('[data-words]').textContent = words.toLocaleString('en-IN') + (words === 1 ? ' word' : ' words');
+        const first = firstParagraph(text);
+        summary.querySelector('[data-first]').textContent = first ? '“' + first + '”' : '(empty)';
+    }
+    function setBodyOpen(lang, open, remember) {
+        const wrap = document.getElementById('body_' + lang + '_wrap');
+        const summary = document.getElementById('body_' + lang + '_summary');
+        const toggle = document.getElementById('body_' + lang + '_toggle');
+        if (!open) updateBodySummary(lang);
+        wrap.classList.toggle('hidden', !open);
+        summary.classList.toggle('hidden', open);
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.querySelector('i').className = (open ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line') + ' mr-1';
+        toggle.querySelector('span').textContent = open ? 'Hide editor' : 'Show editor';
+        // the editor cannot measure itself while hidden, so redraw it when it comes back
+        if (open && bodyEditor(lang)) bodyEditor(lang).codemirror.refresh();
+        if (remember) { try { localStorage.setItem(BODY_HIDDEN_KEY + lang, open ? '0' : '1'); } catch (_) { /* private window */ } }
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+        ['en', 'hi'].forEach((lang) => {
+            document.getElementById('body_' + lang + '_toggle').addEventListener('click', () => {
+                setBodyOpen(lang, document.getElementById('body_' + lang + '_wrap').classList.contains('hidden'), true);
+            });
+            document.getElementById('body_' + lang + '_summary').addEventListener('click', () => setBodyOpen(lang, true, true));
+            let hidden = false;
+            try { hidden = localStorage.getItem(BODY_HIDDEN_KEY + lang) === '1'; } catch (_) { /* private window */ }
+            if (hidden && bodyEditor(lang).value().trim()) setBodyOpen(lang, false, false);
+        });
+    });
+
     // --- NEW: AI Content Generation Logic ---
     const generateEnBtn = document.getElementById('generate-en-btn');
     const generateHiBtn = document.getElementById('generate-hi-btn');
@@ -601,6 +665,7 @@
             } else {
                 easyMDE_hi.value(result.body);
             }
+            setBodyOpen(lang, true, false); // show what was generated
             showToast('Content generated successfully!', 'success');
 
         } catch (error) {
