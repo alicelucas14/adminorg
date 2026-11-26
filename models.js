@@ -90,6 +90,7 @@ const reviewSchema = new mongoose.Schema({
     // --- NEW SEO FIELDS ---
     metaTitle: { type: optionalLocalizedStringSchema, required: false },
     metaDescription: { type: optionalLocalizedStringSchema, required: false },
+    focusKeyword: { type: String, trim: true, default: '' },
     // --- END NEW FIELDS ---
     
     gameName: { type: String, required: true, trim: true },
